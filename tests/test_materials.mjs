@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {addMaterial,materialNotes,captureTags,materialsMarkdown} from '../static/materials-model.js';
+const s={folders:[{id:'raw',module:'materials'},{id:'child',parent:'raw'},{id:'chronicle',module:'chronicle'}],notes:[{id:'other',folder:'chronicle',date:'2026-10-17',body:'not a thought',tags:[],createdAt:'2026-10-17T01:00:00Z'}],chronicle:{events:[]}};
+const raw='  语音原话\n\n第一段，不加工。\n<script>alert(1)</script>\n';
+addMaterial(s,{id:'a',folder:'raw',date:'2026-10-17',body:raw,tags:captureTags('想法，#系统,想法'),now:'2026-10-17T01:00:00Z'});
+addMaterial(s,{id:'b',folder:'raw',date:'2026-09-06',body:'历史想法',now:'2026-09-06T01:00:00Z'});
+assert.equal(s.notes.find(n=>n.id==='a').body,raw);assert.deepEqual(s.notes.find(n=>n.id==='a').tags,['想法','系统']);assert.equal(s.notes.find(n=>n.id==='a').ruleId,undefined);assert.equal(s.chronicle.events.length,0);
+assert.deepEqual(materialNotes(s,'raw',{month:'2026-10'}).map(n=>n.id),['a']);assert.deepEqual(materialNotes(s,'raw',{query:'系统'}).map(n=>n.id),['a']);assert.equal(materialNotes(s,'raw',{query:'not a thought'}).length,0);assert.deepEqual(materialNotes(s,'raw').map(n=>n.id),['a','b']);
+s.notes.find(n=>n.id==='a').trashed=true;assert.equal(materialNotes(s,'raw',{date:'2026-10-17'}).length,0);assert.equal(materialNotes(s,'raw',{trash:true}).length,1);s.notes.find(n=>n.id==='a').trashed=false;
+assert.ok(materialsMarkdown(s,'raw','2026-10').includes(raw));assert.ok(!materialsMarkdown(s,'raw','2026-10').includes('历史想法'));
+assert.throws(()=>addMaterial(s,{id:'bad',folder:'raw',date:'2026-10-17',body:'   '}));assert.throws(()=>addMaterial(s,{id:'a',folder:'raw',date:'2026-10-17',body:'duplicate'}));assert.throws(()=>addMaterial(s,{id:'bad',folder:'chronicle',date:'2026-10-17',body:'wrong'}));
+console.log('Raw materials: verbatim capture, manual tags, date/month/search scope, trash, export and isolation from chronicle/progress passed.');
