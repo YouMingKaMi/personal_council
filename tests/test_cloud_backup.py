@@ -98,17 +98,39 @@ class CloudBackupTests(unittest.TestCase):
             repo.save('main', before['revision'], before['state'])
         self.assertEqual(len(observed), 1)
 
-    def test_retention_never_deletes_foreign_files(self):
+    def test_retention_keeps_exact_latest_three_and_foreign_files(self):
         cloud = self.root / 'retention'
         cloud.mkdir()
         (cloud / 'personal-notes.zip').write_text('not ours')
-        for day in range(1, 29):
-            for minute in range(3):
-                (cloud / f'council-202601{day:02d}T010{minute}00000000Z-1234abcd.zip').write_text('fixture')
+        (cloud / '.council-partial').write_text('in flight')
+        names = [f'council-202601{day:02d}T010200000000Z-1234abcd.zip' for day in range(1, 29)]
+        for name in names:
+            (cloud / name).write_text('fixture')
         prune(cloud)
+        self.assertEqual(sorted(p.name for p in cloud.glob('council-*.zip')), names[-3:])
         self.assertTrue((cloud / 'personal-notes.zip').exists())
-        self.assertTrue((cloud / 'council-20260101T010200000000Z-1234abcd.zip').exists())
-        self.assertLess(len(list(cloud.iterdir())), 85)
+        self.assertTrue((cloud / '.council-partial').exists())
+        prune(cloud)
+        self.assertEqual(len(list(cloud.glob('council-*.zip'))), 3)
+
+    def test_failed_new_backup_never_prunes_existing_bundles(self):
+        from unittest.mock import patch
+        cloud = self.root / 'retention-failure'
+        cloud.mkdir()
+        names = [f'council-202601{day:02d}T010200000000Z-1234abcd.zip' for day in range(1, 6)]
+        for name in names:
+            (cloud / name).write_text('previous backup')
+        manager = BackupManager(SimpleNamespace(root=self.data, db=self.db), cloud, retry_delay=100)
+        try:
+            with patch('cloud_backup.create_bundle', side_effect=OSError('simulated failure')):
+                self.assertIsNotNone(manager.run()['error'])
+            self.assertEqual(sorted(p.name for p in cloud.iterdir()), names)
+            manager.destination = cloud
+            self.assertIsNone(manager.run()['error'])
+            self.assertEqual(len(list(cloud.glob('council-*.zip'))), 3)
+            self.assertEqual(len(list((self.data / 'auto-backup').glob('council-*.zip'))), 1)
+        finally:
+            manager.close()
 
 if __name__ == '__main__':
     unittest.main()

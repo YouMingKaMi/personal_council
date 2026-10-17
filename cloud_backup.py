@@ -81,18 +81,11 @@ def create_bundle(source, output, code_version='0.9-cloud1'):
     return manifest
 
 def prune(directory):
-    """Keep latest 20 + latest of each of 30 days + latest of 12 months."""
-    files = sorted((p for p in Path(directory).iterdir() if PATTERN.fullmatch(p.name)), reverse=True)
-    keep = set(files[:20])
-    days, months = {}, {}
-    for p in files:
-        days.setdefault(p.name[8:16], p)
-        months.setdefault(p.name[8:14], p)
-    keep.update(list(days.values())[:30])
-    keep.update(list(months.values())[:12])
-    for p in files:
-        if p not in keep:
-            p.unlink()
+    """Keep only the latest three completed app-owned backup bundles."""
+    files = sorted((p for p in Path(directory).iterdir()
+                    if p.is_file() and not p.is_symlink() and PATTERN.fullmatch(p.name)), reverse=True)
+    for p in files[3:]:
+        p.unlink()
 
 class BackupManager:
     def __init__(self, repository, destination, delay=2, retry_delay=60):
