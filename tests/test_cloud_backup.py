@@ -86,6 +86,18 @@ class CloudBackupTests(unittest.TestCase):
             self.assertIsNone(manager.run()['error'])
         finally:
             manager.close()
+    def test_repository_commit_requests_backup_after_commit_only(self):
+        from repository import Repository, Conflict
+        repo = Repository(self.data)
+        observed = []
+        repo.on_saved = lambda: observed.append(repo.read('main')['revision'])
+        before = repo.read('main')
+        repo.save('main', before['revision'], before['state'])
+        self.assertEqual(observed, [before['revision'] + 1])
+        with self.assertRaises(Conflict):
+            repo.save('main', before['revision'], before['state'])
+        self.assertEqual(len(observed), 1)
+
     def test_retention_never_deletes_foreign_files(self):
         cloud = self.root / 'retention'
         cloud.mkdir()
