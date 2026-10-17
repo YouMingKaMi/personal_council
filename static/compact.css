@@ -1,0 +1,101 @@
+/* Compact monochrome workspace: geometry is shared by both appearances. */
+:root{--radius:3px;font-size:13px}
+:root[data-theme="dark"]{--bg:#050505;--paper:#080808;--ink:#ededed;--muted:#929292;--line:#272727;--green:#dedede;--soft:#151515;--orange:#aaa;--theme-surface:#080808;--theme-raised:#111;--theme-subtle:#202020;--theme-accent-bg:#dedede;--theme-accent-soft:#191919;--theme-text:#ccc;--theme-strong:#eee;--theme-muted:#929292;--theme-on-fill:#080808;--theme-accent:#e5e5e5;--theme-border:#292929;--theme-border-accent:#888;--theme-shadow:#0006}
+:root[data-theme="dark"] #sidebar,:root[data-theme="dark"] #topbar{background:#090909;border-color:#252525}
+:root[data-theme="dark"] .hero,:root[data-theme="dark"] .task-completed{background:#080808;border-color:#292929}
+:root[data-theme="dark"] .brandmark{background:#181818;color:#eee}
+:root[data-theme="dark"] .button.primary{background:#e4e4e4;border-color:#e4e4e4;color:#111}
+:root[data-theme="dark"] .button.primary:hover{background:#fff}
+:root[data-theme="dark"] .nav-item.active,:root[data-theme="dark"] .environment .selected{background:#202020;color:#fff}
+:root[data-theme="dark"] input,:root[data-theme="dark"] textarea,:root[data-theme="dark"] select{caret-color:#eee;accent-color:#ddd}
+:root[data-theme="dark"] .pure-check-toggle.checked .pure-check-icon{background:#ddd;color:#111}
+:root[data-theme="dark"] .habit-chart-svg rect[fill="#579578"]{fill:#e5e5e5}
+:root[data-theme="dark"] .habit-chart-svg rect[fill="#a6c7b3"]{fill:#777}
+:root[data-theme="dark"] .ring-fill{stroke:#eee}
+:root[data-theme="dark"] .ring-track{stroke:#292929}
+:root[data-theme="dark"] .appearance-switch{background:#111;border-color:#303030}
+:root[data-theme="dark"] .appearance-switch button[aria-pressed="true"]{background:#242424;color:#eee;border-color:#444}
+:root[data-theme="dark"] .appearance-switch button:hover{background:#202020;color:#fff}
+:root[data-theme="dark"] .habit-calendar-day.complete{background:#dedede;color:#111}
+:root[data-theme="dark"] .habit-calendar-day.complete small{color:#333}
+:root[data-theme="dark"] .habit-calendar-day.today{box-shadow:inset 0 0 0 1px #888}
+#sidebar{width:190px;padding:20px 12px 12px}
+.workspace{margin-left:190px}
+.brand{padding:0 8px 22px;gap:9px}.brand strong{font-size:14px;letter-spacing:.5px}.brand small{font-size:8px;letter-spacing:1.5px}.brandmark{width:29px;height:30px;border-radius:3px}.brandmark .icon{width:19px;height:19px}
+.nav-item{font-size:12px;padding:8px 10px;gap:9px;border-radius:3px;margin-bottom:2px}.nav-item .icon{width:16px;height:16px}.nav-label{margin:20px 10px 9px;font-size:9px;letter-spacing:1px}.sidebar-bottom{padding-top:20px}.local-status{margin:12px 7px 0;padding-top:10px;font-size:10px}
+.appearance-switch{margin:10px 5px 0;padding:3px}.appearance-switch button{height:27px}.appearance-switch svg{width:16px;height:16px}
+#topbar{height:48px;padding:0 26px}.top-actions{gap:12px}.breadcrumbs{font-size:11px}.icon{width:16px;height:16px}
+main{max-width:1600px;padding:24px 26px 40px}.page-heading{margin-bottom:18px;gap:12px}h1{font-size:23px;letter-spacing:0;margin-bottom:5px}h2{font-size:14px}h3{font-size:13px}.eyebrow{font-size:9px;letter-spacing:1.5px;margin-bottom:6px}.subtitle{font-size:11px}.button{font-size:11px;min-height:29px;padding:5px 9px;border-radius:3px;gap:5px}.button .icon{width:13px;height:13px}.button.small{min-height:25px;padding:4px 7px}.actions{gap:6px}
+.hero{padding:16px 20px;margin-bottom:18px;gap:16px;border-radius:3px}.hero:after{display:none}.hero-kicker{margin-bottom:7px;font-size:9px}.hero h2{font-size:19px;margin-bottom:5px}.hero p{font-size:11px}.hero-facts{margin-top:10px;gap:18px}.hero-facts strong{font-size:14px}.progress-ring{width:76px;height:76px;margin-right:5px}.ring-text strong{font-size:23px}.ring-text small{font-size:8px;letter-spacing:0}
+.section-heading{margin:18px 0 10px}.dashboard{gap:14px}.panel-header{padding:13px 16px 11px}.panel-title h2{font-size:13px}.panel-title>.icon{width:15px;height:15px}.panel-body{padding:0 16px 14px}.panel-foot{font-size:10px;padding-top:10px}.panel,.note-list,.editor-shell,.reflection-notes{border-radius:3px}
+.task-row{padding:9px 0;gap:9px}.task-row .text strong{font-size:12px}.task-add input{padding:7px 9px;border-radius:3px}.task-split{column-gap:28px}.task-completed{padding:12px;border-radius:2px}.task-completed:before{left:-15px}.task-lane-empty,.task-empty{padding:12px 0}.task-lane-heading{margin-bottom:8px}.empty{padding:16px 10px}.empty.large{padding:35px 12px}
+.habit-row{padding:10px 0}.habit-name{gap:7px;font-size:12px}.habit-name .icon{width:15px;height:15px}.habit-name strong{font-weight:500}.habit-value{font-variant-numeric:tabular-nums}.meter{height:3px;border-radius:0;margin:8px 0}.meter span{border-radius:0}.habit-bottom{gap:8px}.stepper{gap:4px}.stepper button{min-width:25px;height:25px;border-radius:2px}.pure-check-toggle{min-height:26px;padding:3px 8px;font-size:11px}.pure-check-icon{width:17px;height:17px}.habit-checks{gap:6px;padding:7px 0}.item-check{padding:5px 8px;min-height:27px;font-size:11px;border-radius:3px}.item-check .icon{width:13px;height:13px}
+/* A single aligned ledger replaces oversized daily habit tiles. */
+.habit-record-grid{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);background:var(--paper)}
+.habit-record-card,.habit-record-card.checklist{padding:13px 16px;border:0;border-bottom:1px solid var(--line);border-radius:0;min-height:0;grid-column:auto}
+.habit-record-card:last-child{border-bottom:0}.habit-record-card .habit-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(130px,1.2fr) minmax(150px,.8fr);align-items:center;gap:16px;padding:0}
+.habit-record-card .habit-heading{display:flex;flex-wrap:wrap;gap:6px;margin:0}.habit-record-card .habit-name{flex:1;min-width:110px}.habit-record-card .habit-value{font-size:11px}.habit-record-card .habit-config-button{min-width:24px;min-height:24px;padding:3px}.habit-record-card .meter{margin:0;height:3px}.habit-record-card .habit-bottom{margin:0;gap:8px}.habit-record-card .habit-bottom small{font-size:10px}.habit-record-card .stepper button{height:26px;min-width:27px;padding:3px 7px;font-size:11px}
+.habit-record-card .pure-check-row{display:block}.habit-record-card .pure-check-row .habit-heading{flex-wrap:nowrap}.habit-record-card .pure-check-toggle{margin-left:auto}.habit-record-card .habit-checks{padding:0;gap:6px}.habit-record-card .item-check{min-height:27px;padding:4px 8px;font-size:11px;border-radius:2px}.habit-record-card.checklist .habit-bottom{margin:0}.habit-day-heading{margin:12px 0 8px}.habit-day-heading h2{font-size:12px}
+.view-switch{margin-bottom:14px;padding-bottom:8px;gap:5px}.view-switch button{padding:7px 12px;font-size:12px;border-radius:2px;min-height:30px}
+.habit-history-toolbar{margin:12px 0;gap:12px}.habit-overview{gap:10px;margin-bottom:12px}.habit-overview>div{padding:12px 14px;border-radius:2px}.habit-overview strong{font-size:23px}.habit-overview small{margin-bottom:5px;font-size:10px}.habit-stats-layout{gap:12px;grid-template-columns:minmax(250px,.8fr) minmax(0,1.4fr)}.habit-stat-card{padding:14px;border-radius:2px}.habit-stat-heading{margin-bottom:12px}.habit-calendar-day{min-height:30px;max-height:44px;aspect-ratio:auto}.habit-calendar,.habit-calendar-week{gap:5px}.habit-item-summary{padding:10px;border-radius:2px;margin-top:7px}.habit-item-summary b{font-size:20px}.habit-select select,.habit-month-nav select,.habit-unit-choice select{padding:5px 8px;font-size:12px;border-radius:2px}
+.folder-grid,.department-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.folder-card,.folder-card-large,.department-card,.workspace-card,.recent-card,.project-launch,.treasury-asset,.monthly-cell,.settings-card{border-radius:3px}.folder-card,.folder-card-large{padding:14px}.folder-main{padding:0;min-height:0}.tile-icon{width:26px;height:26px;border-radius:3px;margin-bottom:10px}.tile-icon .icon{width:16px;height:16px}.department-card-main{padding:14px 15px 10px;min-height:112px}.department-card-top>.tile-icon{width:26px;height:26px;border-radius:2px;margin-bottom:0}.department-card h2{font-size:14px;margin:11px 0 5px}.department-card-foot{margin:0 15px;padding:6px 0}.department-toolbar{margin-bottom:12px}
+.note-row{padding:12px 15px;gap:11px}.note-row h3{margin-bottom:4px;font-size:12px}.reflection-note{padding:12px 16px}.reflection-note h3{font-size:13px;margin-bottom:4px}.reflection-note-top{margin-bottom:5px}.reflection-note-tags{gap:5px;margin-top:7px}.thought-tag-cloud{gap:6px}.folder-tag-filters{gap:6px;margin-bottom:12px}.folder-tag-filters button{min-height:28px;padding:5px 8px;font-size:11px;border-radius:2px}
+.editor-shell{padding:22px 26px}.editor-title{font-size:23px}.editor-meta{padding:12px 0;gap:12px}.markdown{font-size:13px;line-height:1.8}.markdown p{line-height:1.8;margin:10px 0}.markdown h1{font-size:23px}.markdown h2{font-size:19px}.body-input{font-size:13px;line-height:1.8}.tags-select{gap:6px}.tags-select button{font-size:11px;padding:5px 8px}
+.chronicle-month{gap:12px}.chronicle-day{padding:12px 16px;border-radius:2px}.chronicle-day>header strong{font-size:19px}.event-row{padding:7px 0}.event-text{font-size:12px;line-height:1.7}.event-input{min-height:65px;border-radius:2px;font-size:12px;padding:10px}.event-completion{margin-top:10px;padding-top:10px}.event-input-foot{margin:7px 0}.chronicle-composer{padding:16px}.bottom-caption{margin-top:20px;font-size:10px}
+.monthly-grid{gap:9px}.monthly-cell{padding:12px;min-height:95px}.monthly-cell-top>strong{font-size:21px}.monthly-year-head{margin-bottom:12px}.monthly-year{padding:16px;border-radius:3px}.monthly-report-row{padding:12px 15px}.monthly-list{border-radius:3px}
+.treasury-totals{gap:12px;margin:16px 0 10px}.treasury-total{padding:16px;gap:8px;border-radius:2px}.treasury-total>strong{font-size:25px}.treasury-total small{font-size:11px}.treasury-explainer{font-size:11px;margin:10px 0 14px}.treasury-assets,.treasury-category-grid{gap:12px;margin:14px 0;grid-template-columns:repeat(3,minmax(0,1fr))}.treasury-category-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.treasury-asset{padding:16px}.treasury-category h2{font-size:14px}.asset-quantity,.asset-big-number{font-size:25px}.asset-card-top{margin-bottom:14px}.asset-card-bottom{margin-top:14px;padding-top:10px}.asset-symbol,.category-icon{border-radius:2px;padding:7px;font-size:11px}.treasury-detail{padding:18px;margin:14px 0;border-radius:2px}.treasury-table td,.treasury-table th{padding:10px}.market-panel{padding:12px 15px;border-radius:2px}.treasury-trail{margin:12px 0}
+.project-launch-grid{gap:12px}.project-launch{padding:14px;gap:12px}.project-launch strong{font-size:14px}.project-launch-icon{padding:7px;border-radius:2px}.project-launch-icon .icon{width:18px;height:18px}.project-log-entry{padding:12px 16px}.project-composer{padding:16px}.settings-grid{gap:12px}.settings-card{padding:16px}.settings-card h2{font-size:14px}
+dialog{border-radius:4px}.modal-head{padding:16px 20px}.modal-head h2{font-size:16px}.modal-content{padding:16px 20px}.form-stack{gap:13px}.form-stack input,.form-stack select,.form-stack textarea{padding:7px 9px;font-size:12px;border-radius:2px}.form-stack label{font-size:12px}.help{font-size:11px;line-height:1.7}.sort-help{margin-top:16px;font-size:10px}.table-wrap{border-radius:2px}
+@media(min-width:1600px){.department-cards,.folder-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1100px){.department-cards,.folder-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.treasury-category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.habit-record-card .habit-row{grid-template-columns:minmax(160px,1fr) minmax(100px,.8fr) minmax(140px,1fr);gap:10px}}
+@media(max-width:800px){#sidebar{width:62px;padding:16px 8px}.workspace{margin-left:62px}main{padding:18px 16px 32px}#topbar{padding:0 16px}.appearance-switch{margin:8px 0 0}.appearance-switch button{width:30px;height:27px}.habit-record-card .habit-row{grid-template-columns:1fr 1fr}.habit-record-card .habit-heading{grid-column:1/-1}.habit-record-card .pure-check-row{display:block}.habit-stats-layout,.habit-stats-layout.calendar-only{grid-template-columns:1fr}.task-completed:before{left:0;top:-10px}.treasury-assets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:550px){.department-cards,.folder-grid,.treasury-assets,.treasury-category-grid{grid-template-columns:1fr}.habit-record-card .habit-row{grid-template-columns:1fr}.habit-record-card .habit-bottom{justify-content:space-between}.hero{padding:13px}.hero h2{font-size:16px}.progress-ring{width:65px;height:65px}.page-heading{align-items:flex-start;flex-wrap:wrap}.habit-overview>div{padding:10px}.editor-shell{padding:16px}.dashboard{gap:12px}}
+.editor-title{background:transparent;color:var(--ink)}
+.page-menu>summary{width:30px;height:30px;border-radius:3px}
+.workspace-tabs button,.thought-collections button,.thought-tag-cloud button{border-radius:3px;padding:6px 10px;font-size:11px;min-height:28px}
+.thought-topics{padding:14px 16px;border-radius:3px;margin-bottom:14px}
+:root[data-theme="dark"] .habit-calendar-legend i.complete{background:#dedede}
+:root[data-theme="dark"] .habit-calendar-legend i.partial{background:#555}
+
+/* The section heading sits above, and outside, the list of habits. */
+.dashboard>.panel>.panel-header{background:var(--theme-raised,#f1f3f1);border-bottom:1px solid var(--line);padding:13px 16px;min-height:49px}
+.dashboard>.panel>.panel-header .panel-title{gap:9px}
+.dashboard>.panel>.panel-header h2{font-size:14px;font-weight:650;letter-spacing:.4px}
+.dashboard>.panel>.panel-header .panel-title>.icon{display:none}
+.dashboard>.panel>.panel-header .count{background:none;border-left:1px solid var(--line);border-radius:0;padding:0 0 0 10px;margin-left:3px;font-size:10px;font-weight:400}
+.dashboard>.panel>.panel-header .button{font-size:10px}
+.dashboard>.panel>.panel-body{padding:3px 20px 12px 27px}
+.dashboard>.panel>.panel-body>.habit-row:first-child{border-top:0}
+.panel[data-panel="habits"] .habit-name strong{font-weight:450;font-size:12px}
+.panel[data-panel="habits"] .habit-name .icon{width:14px;height:14px;opacity:.7}
+:root[data-theme="dark"] .dashboard>.panel>.panel-header{background:#121212}
+@media(max-width:550px){.dashboard>.panel>.panel-body{padding-left:20px;padding-right:15px}.dashboard>.panel>.panel-header{padding:12px 14px}}
+
+.dashboard>.panel>.panel-body>.section-heading:first-child{margin-top:12px}
+.dashboard>.panel>.panel-body>.task-row:first-child,.dashboard>.panel>.panel-body>.writing-row:first-child,.dashboard>.panel>.panel-body>.mini-note:first-child{border-top:0}
+.dashboard>.panel[data-panel="tasks"]>.panel-body{padding-top:14px}
+
+.habit-completed{margin-top:9px;border-top:1px solid var(--line);padding-top:10px}.habit-completed>summary{cursor:pointer;font-size:11px;color:var(--muted);padding:5px 0;list-style:none;display:flex;gap:8px;align-items:center}.habit-completed>summary:before{content:'›';font-size:16px;line-height:1}.habit-completed[open]>summary:before{transform:rotate(90deg)}.habit-completed>summary span{font-variant-numeric:tabular-nums}.habit-completed .habit-row{opacity:.8}.habit-collapse{margin-left:auto}.habit-completed>summary:focus-visible{outline:1px solid var(--ink);outline-offset:3px}
+.dashboard>.panel>.panel-body>[data-sort-group="habits"]>.habit-row:first-child{border-top:0}
+
+/* Compact task marks, with the existing row height retained. */
+.task-row .check-box{width:16px;height:16px;min-width:16px;min-height:16px;border-width:1px;border-radius:3px}
+.task-row .check-box .icon{width:11px;height:11px}
+
+/* Chronicle: write and review side by side, sharing the same event data. */
+.chronicle-workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.chronicle-record-pane,.chronicle-review-pane{min-width:0;border:1px solid var(--line);background:var(--paper);border-radius:3px}
+.chronicle-pane-heading{min-height:49px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 15px;background:var(--theme-raised,#f1f3f1);border-bottom:1px solid var(--line)}
+.chronicle-pane-heading h2{font-size:14px;font-weight:650;letter-spacing:.4px;white-space:nowrap}.chronicle-pane-heading>span{font-size:10px}
+.chronicle-record-body{padding:14px 17px;max-height:calc(100dvh - 235px);overflow:auto;scrollbar-width:thin}
+.chronicle-record-date{font-size:11px;color:var(--muted);margin-bottom:6px}
+.chronicle-record-body .chronicle-composer{padding:0}.chronicle-record-body .event-row{padding:9px 0;align-items:flex-start}.chronicle-record-body .event-input{margin-top:12px;min-height:90px}.chronicle-record-body .event-input-foot{gap:8px;flex-wrap:wrap}.chronicle-record-body .event-completion{gap:10px;flex-wrap:wrap}.chronicle-record-body .event-text{font-size:12px;line-height:1.8}
+.chronicle-review-pane .chronicle-month-toolbar{padding:12px 14px;margin:0;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;font-size:10px}
+.chronicle-review-pane .chronicle-month-field>span{display:none}.chronicle-review-pane .chronicle-month-field{gap:0}.chronicle-review-pane .chronicle-month-trigger{min-width:142px;padding:5px 8px;min-height:29px;font-size:11px;border-radius:3px}
+.chronicle-review-pane .chronicle-month-toolbar label{font-size:10px;gap:5px}.chronicle-review-pane .chronicle-month-toolbar .button{padding:4px 6px;font-size:10px;min-height:27px}.chronicle-review-pane .chronicle-month-toolbar>.button{margin-left:auto}
+.chronicle-review-pane .chronicle-month{max-height:calc(100dvh - 294px);overflow:auto;overscroll-behavior:contain;padding:0 15px;display:block;scrollbar-width:thin}
+.chronicle-review-pane .chronicle-day{padding:12px 0;border:0;border-radius:0;border-bottom:1px solid var(--line);background:transparent}
+.chronicle-review-pane .chronicle-day:last-child{border-bottom:0}.chronicle-review-pane .chronicle-day>header{border-bottom:0;margin-bottom:3px;padding:0;min-height:26px}.chronicle-review-pane .chronicle-day>header strong{font-size:18px}.chronicle-review-pane .chronicle-day>header .button{font-size:10px;min-height:24px;padding:3px 5px}.chronicle-review-pane .event-row{padding:6px 0}.chronicle-review-pane .event-text{font-size:11px;line-height:1.8}.chronicle-review-pane .event-bullet{width:3px;height:3px}.chronicle-review-pane .event-row:last-child{border-bottom:0}
+:root[data-theme="dark"] .chronicle-pane-heading{background:#121212}
+@media(min-width:1550px){.chronicle-workspace{gap:20px}}
+@media(max-width:1000px){.chronicle-workspace{grid-template-columns:1fr}.chronicle-record-body{max-height:none}.chronicle-review-pane .chronicle-month{max-height:65dvh}.chronicle-review-pane .chronicle-month-toolbar{gap:12px}}

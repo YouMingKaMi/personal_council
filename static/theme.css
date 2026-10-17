@@ -1,0 +1,41 @@
+/* Dark palette. Light mode keeps the exact existing declaration fallbacks. */
+:root[data-theme="dark"]{
+ --bg:#0b0b0b;--paper:#131313;--ink:#e7e7e7;--muted:#a3a3a3;--line:#2f2f2f;--green:#b2b2b2;--soft:#232323;--orange:#b4b4b4;
+ --theme-surface:#131313;--theme-raised:#1a1a1a;--theme-subtle:#222222;
+ --theme-accent-bg:#5e5e5e;--theme-accent-soft:#262626;--theme-warm-bg:#242424;--theme-info-bg:#222222;--theme-purple-bg:#232323;--theme-danger-bg:#242424;
+ --theme-text:#cfcfcf;--theme-strong:#e7e7e7;--theme-muted:#a3a3a3;--theme-on-fill:#f4f4f4;
+ --theme-accent:#b8b8b8;--theme-warning:#bababa;--theme-danger:#b1b1b1;--theme-info:#b5b5b5;--theme-purple:#aeaeae;
+ --theme-border:#333333;--theme-border-accent:#5e5e5e;--theme-border-warning:#575757;--theme-border-info:#525252;--theme-shadow:#00000066;
+}
+:root[data-theme="dark"] #sidebar{background:#111111;border-color:#2a2a2a}
+:root[data-theme="dark"] #topbar{background:#101010;border-color:#2a2a2a}
+:root[data-theme="dark"] .hero{background:#181818;border-color:#373737}
+:root[data-theme="dark"] .hero::after{opacity:.12}
+:root[data-theme="dark"] .brandmark{background:#494949;color:#efefef}
+:root[data-theme="dark"] .button.primary{background:#5c5c5c;border-color:#6d6d6d;color:#f5f5f5}
+:root[data-theme="dark"] .button.primary:hover{background:#6f6f6f}
+:root[data-theme="dark"] input,:root[data-theme="dark"] textarea,:root[data-theme="dark"] select{color-scheme:dark;caret-color:#cecece;accent-color:#a5a5a5}
+:root[data-theme="dark"] ::placeholder{color:#8d8d8d;opacity:1}
+:root[data-theme="dark"] ::selection{background:#545454;color:#f6f6f6}
+:root[data-theme="dark"] .nav-item.active{background:#2b2b2b;color:#cfcfcf}
+:root[data-theme="dark"] .environment .selected{background:#333333;color:#e2e2e2}
+:root[data-theme="dark"] .pure-check-toggle.checked .pure-check-icon{background:#7a7a7a;color:#ffffff}
+:root[data-theme="dark"] .habit-chart-svg line{stroke:#373737}
+:root[data-theme="dark"] .habit-chart-svg rect[fill="#868686"]{fill:#adadad}
+:root[data-theme="dark"] .habit-chart-svg rect[fill="#bfbfbf"]{fill:#5d5d5d}
+:root[data-theme="dark"] .ring-track{stroke:#313131}
+:root[data-theme="dark"] .ring-fill{stroke:#b9b9b9}
+:root[data-theme="dark"] .sort-ghost{background:#1b1b1b;box-shadow:0 18px 48px #00000099}
+:root[data-theme="dark"] dialog::backdrop{background:#00000099}
+:root[data-theme="dark"] .task-completed{background:#1d1d1d}
+.appearance-switch{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:4px;margin:17px 8px 0;border:1px solid #e2e2e2;border-radius:28px;background:#ededed;flex-shrink:0}
+.appearance-switch button{display:grid;place-items:center;flex:1;min-width:0;height:32px;border-radius:22px;border:1px solid transparent;color:#949494;transition:background .15s,color .15s,border-color .15s}
+.appearance-switch svg{width:18px;height:18px}
+.appearance-switch button:hover{color:#474747;background:#f5f5f5}
+.appearance-switch button[aria-pressed="true"]{color:#474747;background:#ffffff;border-color:#dddddd;box-shadow:0 1px 3px #3131310a}
+:root[data-theme="dark"] .appearance-switch{background:#1a1a1a;border-color:#323232}
+:root[data-theme="dark"] .appearance-switch button{color:#989898}
+:root[data-theme="dark"] .appearance-switch button:hover{color:#e8e8e8;background:#262626}
+:root[data-theme="dark"] .appearance-switch button[aria-pressed="true"]{color:#ececec;background:#2a2a2a;border-color:#484848;box-shadow:none}
+@media(max-width:800px){.appearance-switch{flex-direction:column;margin:10px 0 0;padding:3px;gap:2px}.appearance-switch button{flex:none;width:34px;height:32px}}
+@media(prefers-reduced-motion:reduce){.appearance-switch button{transition:none}}

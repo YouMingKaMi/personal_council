@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 8,
+  "folders": [
+    {
+      "id": "space-0",
+      "parent": null,
+      "name": "执行部",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false
+    },
+    {
+      "id": "space-1",
+      "parent": "space-0",
+      "name": "习惯记录库",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false,
+      "module": "habits"
+    },
+    {
+      "id": "space-2",
+      "parent": "space-0",
+      "name": "每日任务",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false,
+      "module": "tasks"
+    },
+    {
+      "id": "space-3",
+      "parent": "space-0",
+      "name": "编年史",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false,
+      "module": "chronicle"
+    },
+    {
+      "id": "space-4",
+      "parent": "space-0",
+      "name": "月报",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false,
+      "module": "monthly"
+    },
+    {
+      "id": "space-5",
+      "parent": "space-0",
+      "name": "个人思考",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false,
+      "module": "reflection"
+    },
+    {
+      "id": "space-6",
+      "parent": "space-0",
+      "name": "国库",
+      "icon": "folder",
+      "fields": [],
+      "description": "",
+      "experimental": false,
+      "module": "treasury"
+    }
+  ],
+  "notes": [],
+  "habits": [],
+  "tasks": [],
+  "rules": [],
+  "templates": [],
+  "requests": [],
+  "pins": [
+    "space-1",
+    "space-2",
+    "space-3",
+    "space-4",
+    "space-5",
+    "space-6"
+  ],
+  "layout": [
+    {
+      "id": "tasks",
+      "size": "wide",
+      "visible": true
+    },
+    {
+      "id": "habits",
+      "size": "half",
+      "visible": true
+    },
+    {
+      "id": "writing",
+      "size": "half",
+      "visible": true
+    }
+  ],
+  "settings": {
+    "weekStart": 1,
+    "cardOrder": {}
+  },
+  "importInfo": {
+    "count": 0,
+    "date": "2026-01-01",
+    "scope": "空白系统",
+    "attachments": false
+  },
+  "chronicle": {
+    "events": [],
+    "days": {}
+  },
+  "migrationInfo": {
+    "from": 1,
+    "date": "2026-01-01",
+    "eventCount": 0
+  },
+  "treasury": {
+    "assets": [
+      {
+        "id": "466a4f401fbc202afbd101da",
+        "name": "人民币",
+        "symbol": "CNY",
+        "category": "cash",
+        "unit": "元",
+        "priceCny": "1",
+        "priceDate": null,
+        "archived": false,
+        "pricingMode": "manual",
+        "quoteId": ""
+      },
+      {
+        "id": "5da30b2ef4b82be281ba9652",
+        "name": "比特币",
+        "symbol": "BTC",
+        "category": "crypto",
+        "unit": "BTC",
+        "priceCny": null,
+        "priceDate": null,
+        "archived": false,
+        "pricingMode": "auto",
+        "quoteId": "bitcoin"
+      },
+      {
+        "id": "8d4c14e7c08dda46c101f663",
+        "name": "以太坊",
+        "symbol": "ETH",
+        "category": "crypto",
+        "unit": "ETH",
+        "priceCny": null,
+        "priceDate": null,
+        "archived": false,
+        "pricingMode": "auto",
+        "quoteId": "ethereum"
+      },
+      {
+        "id": "14de3e84ab5ff1b44b3bedbd",
+        "name": "USD Coin",
+        "symbol": "USDC",
+        "category": "crypto",
+        "unit": "USDC",
+        "priceCny": null,
+        "priceDate": null,
+        "archived": false,
+        "pricingMode": "auto",
+        "quoteId": "usd-coin"
+      },
+      {
+        "id": "33ac9713df4e571c1288ce71",
+        "name": "外部个人投资",
+        "symbol": "CNY-INV",
+        "category": "investment",
+        "unit": "元",
+        "priceCny": "1",
+        "priceDate": null,
+        "archived": false,
+        "pricingMode": "manual",
+        "quoteId": ""
+      }
+    ],
+    "accounts": [],
+    "changes": [],
+    "snapshots": [],
+    "market": {
+      "frequency": "daily",
+      "lastAttempt": null,
+      "lastSuccess": null,
+      "errors": [],
+      "prices": {},
+      "fx": {}
+    }
+  }
+}

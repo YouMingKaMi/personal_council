@@ -1,0 +1,2 @@
+import {monthDates} from './tracking-model.js';
+export function taskMonth(state,month){const days=monthDates(month).map(date=>{const tasks=state.tasks.filter(t=>t.date===date),done=tasks.filter(t=>t.done).length;return {date,tasks,done,total:tasks.length,complete:tasks.length>0&&done===tasks.length};});const total=days.reduce((n,d)=>n+d.total,0),done=days.reduce((n,d)=>n+d.done,0);return {days,total,done,activeDays:days.filter(d=>d.total).length,completedDays:days.filter(d=>d.complete).length,rate:total?Math.round(done/total*100):null};}

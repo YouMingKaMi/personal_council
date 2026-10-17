@@ -1,0 +1,5 @@
+export function ordered(state,scope,items,id=x=>x.id){const ranks=new Map((state.settings?.cardOrder?.[scope]||[]).map((key,i)=>[key,i]));return items.map((item,i)=>({item,i,rank:ranks.get(id(item))??Infinity})).sort((a,b)=>a.rank-b.rank||a.i-b.i).map(x=>x.item);}
+export function mergeVisibleOrder(base,visible){if(new Set(visible).size!==visible.length||visible.some(id=>!base.includes(id)))throw new Error('排序项目已变化，请刷新后重试');const chosen=new Set(visible);let i=0;return base.map(id=>chosen.has(id)?visible[i++]:id);}
+export function saveOrder(state,scope,visible,allIds){const base=scope==='pins'?[...state.pins]:ordered(state,scope,allIds,x=>x),result=mergeVisibleOrder(base,visible);if(scope==='pins')state.pins=result;else state.settings.cardOrder[scope]=result;return result;}
+export const sortGroup=(scope,flow='grid')=>`data-sort-group="${scope}" data-sort-flow="${flow}"`;
+export const sortItem=(id,label='')=>`data-sort-id="${id}" class="sortable-item"${label?` aria-label="${label}"`:''}`;

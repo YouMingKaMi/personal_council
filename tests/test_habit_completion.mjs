@@ -1,0 +1,9 @@
+import assert from 'node:assert/strict';
+import {metric,addVersion,setNumber,toggleCheck,toggleItem,hiddenOnHome,setHomeCollapsed} from '../static/tracking-model.js';
+const date='2026-10-17';
+const make=kind=>({entries:{},versions:[{id:'v1',fromDate:'2026-01-01',name:'habit',kind,target:kind==='number'?2:1,unit:'次',days:[0,1,2,3,4,5,6],enabled:true,items:kind==='checklist'?[{id:'fish',name:'鱼油'}]:[],policy:'all'}]});
+let h=make('number');setNumber(h,date,2,'now');assert.equal(hiddenOnHome(h,date),false);setNumber(h,date,4,'now');assert.equal(hiddenOnHome(h,date),false);setHomeCollapsed(h,date,true);assert.equal(hiddenOnHome(h,date),true);assert.equal(metric(h,date).value,4);assert.equal(metric(h,date).done,true);assert.equal(hiddenOnHome(h,'2026-10-18'),false);setHomeCollapsed(h,date,false);assert.equal(hiddenOnHome(h,date),false);setNumber(h,date,1,'now');assert.throws(()=>setHomeCollapsed(h,date,true));
+h=make('check');toggleCheck(h,date,'now');assert.equal(hiddenOnHome(h,date),true);toggleCheck(h,date,'now');assert.equal(hiddenOnHome(h,date),false);
+h=make('checklist');toggleItem(h,date,'fish','now');assert.equal(hiddenOnHome(h,date),true);toggleItem(h,date,'fish','now');assert.equal(hiddenOnHome(h,date),false);
+h=make('number');setNumber(h,'2026-10-16',5,'then');const old=JSON.stringify(h.entries);addVersion(h,{...h.versions[0],id:'v2',fromDate:date,kind:'check',target:1});assert.equal(metric(h,'2026-10-16').value,5);assert.equal(JSON.stringify(h.entries),old);toggleCheck(h,date,'now');assert.equal(metric(h,date).done,true);assert.equal(hiddenOnHome(h,date),true);assert.throws(()=>addVersion(h,{...h.versions[1],id:'v3',fromDate:date,kind:'number'}));
+console.log('Home completion: automatic checks, explicit numeric hiding, undo, day isolation and type-change history passed.');

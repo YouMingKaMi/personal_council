@@ -1,0 +1,11 @@
+/data/
+/backups/
+/seed.json
+__pycache__/
+*.pyc
+*.sqlite3
+*.sqlite3-*
+*.zip
+.env
+.env.*
+.DS_Store
