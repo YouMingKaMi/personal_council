@@ -98,6 +98,25 @@
       "fields": [],
       "description": "",
       "experimental": false
+    },
+    {
+      "id": "finance",
+      "name": "财政部",
+      "parent": null,
+      "icon": "wallet",
+      "fields": [],
+      "description": "",
+      "experimental": false
+    },
+    {
+      "id": "expenses",
+      "name": "花销",
+      "module": "expenses",
+      "parent": "finance",
+      "icon": "wallet",
+      "fields": [],
+      "description": "消费、预算与周期账单",
+      "experimental": false
     }
   ],
   "notes": [],
@@ -134,6 +153,11 @@
     },
     {
       "id": "materials",
+      "size": "half",
+      "visible": true
+    },
+    {
+      "id": "expenses",
       "size": "half",
       "visible": true
     }
