@@ -146,7 +146,7 @@ def validate(state):
         if not isinstance(r.get('days'), list) or any(type(d) is not int or not 0 <= d <= 6 for d in r['days']):
             raise ValueError('每周日期无效')
     layout = state.get('layout')
-    if not isinstance(layout, list) or any(not isinstance(x, dict) or x.get('size') not in ('half', 'wide') or x.get('id') not in ('tasks', 'habits', 'writing', 'recent', 'weekly') or not isinstance(x.get('visible'), bool) for x in layout):
+    if not isinstance(layout, list) or any(not isinstance(x, dict) or x.get('size') not in ('half', 'wide') or x.get('id') not in ('tasks', 'habits', 'writing', 'recent', 'weekly', 'materials') or not isinstance(x.get('visible'), bool) for x in layout):
         raise ValueError('布局格式错误')
     if len({x['id'] for x in layout}) != len(layout):
         raise ValueError('布局卡片重复')

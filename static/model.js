@@ -14,6 +14,6 @@ export function folderPath(s,id){let path=[];let seen=new Set();while(id&&!seen.
 export function fieldsFor(s,id){return folderPath(s,id).flatMap(f=>f.fields||[]);}
 export function scopeNotes(s,id,includeLegacy=false){const ids=descendants(s,id);return s.notes.filter(n=>!n.trashed&&(includeLegacy||!n.readOnlyArchive)&&ids.has(n.folder)).sort((a,b)=>b.date.localeCompare(a.date)||(Date.parse(b.updatedAt)-Date.parse(a.updatedAt)));}
 export function meaningful(body){return body.replace(/^---[\s\S]*?---/,'').split('\n').filter(l=>!/^\s*(#{1,6}\s|[-*]\s*$)/.test(l)).join('').trim().length>0;}
-export const panels=[{id:'tasks',name:'每日任务'},{id:'habits',name:'习惯打卡'},{id:'writing',name:'记录与回顾'},{id:'recent',name:'最近打开的世界'},{id:'weekly',name:'七日回顾',experimental:true}];
+export const panels=[{id:'materials',name:'未加工信息原料'},{id:'tasks',name:'每日任务'},{id:'habits',name:'习惯打卡'},{id:'writing',name:'记录与回顾'},{id:'recent',name:'最近打开的世界'},{id:'weekly',name:'七日回顾',experimental:true}];
 export const weekdays=['周日','周一','周二','周三','周四','周五','周六'];
 export function scheduleText(r){if(r.frequency==='daily')return '每天';if(r.frequency==='monthly')return r.monthDay===31?'每月最后一天':`每月 ${r.monthDay} 日（短月取月末）`;return r.days.length?r.days.map(d=>weekdays[d]).join('、'):'未选择日期';}

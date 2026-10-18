@@ -10,3 +10,20 @@ s.notes.find(n=>n.id==='a').trashed=true;assert.equal(materialNotes(s,'raw',{dat
 assert.ok(materialsMarkdown(s,'raw','2026-10').includes(raw));assert.ok(!materialsMarkdown(s,'raw','2026-10').includes('历史想法'));
 assert.throws(()=>addMaterial(s,{id:'bad',folder:'raw',date:'2026-10-17',body:'   '}));assert.throws(()=>addMaterial(s,{id:'a',folder:'raw',date:'2026-10-17',body:'duplicate'}));assert.throws(()=>addMaterial(s,{id:'bad',folder:'chronicle',date:'2026-10-17',body:'wrong'}));
 console.log('Raw materials: verbatim capture, manual tags, date/month/search scope, trash, export and isolation from chronicle/progress passed.');
+// A selected day reads complete records, while the month view stays compact.
+const {createMaterials}=await import('../static/materials-feature.js');
+globalThis.document={addEventListener(){}};
+globalThis.window={scrollTo(){}};
+const drafts=new Map();globalThis.localStorage={getItem:k=>drafts.get(k)||null,setItem:(k,v)=>drafts.set(k,v),removeItem:k=>drafts.delete(k)};
+const fullBody='完整原文'.repeat(180)+'正文末尾';
+s.notes.find(n=>n.id==='a').body=fullBody;
+const feature=createMaterials({state:()=>s,folder:()=>({id:'raw'}),space:()=> 'main',date:()=> '2026-10-18',render(){}});
+feature.restore({date:'2026-10-17',month:'2026-10',query:'',readDate:null});
+assert.ok(feature.page().includes('material-long'));
+await feature.action('material-day',{dataset:{date:'2026-10-17'}});
+assert.ok(feature.page().includes(fullBody));assert.ok(!feature.page().includes('material-long'));assert.ok(!feature.page().includes('历史想法'));assert.ok(!feature.page().includes('<textarea'));
+await feature.action('material-review-back',{});assert.ok(feature.page().includes('material-history'));
+feature.input({id:'material-home-body',value:'首页草稿',form:{dataset:{date:'2026-10-18'},elements:{tags:{value:''}}}});
+assert.ok(feature.panel().includes('首页草稿'));assert.ok(!feature.page().includes('首页草稿'));
+feature.change({id:'material-date',value:'2026-10-18'});assert.ok(feature.page().includes('首页草稿'));
+console.log('Full-day reading and date-isolated shared home drafts passed.');

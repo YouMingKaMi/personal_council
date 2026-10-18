@@ -120,6 +120,11 @@
       "id": "writing",
       "size": "half",
       "visible": true
+    },
+    {
+      "id": "materials",
+      "size": "half",
+      "visible": true
     }
   ],
   "settings": {
