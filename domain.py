@@ -164,6 +164,8 @@ def validate(state):
         raise ValueError('导入信息格式错误')
     if not isinstance(state.get('settings'), dict):
         raise ValueError('设置格式错误')
+    from important_dates_domain import validate_important_dates
+    validate_important_dates(state)
     from monthly_domain import validate_monthly
     validate_monthly(state)
     orders=state['settings'].get('cardOrder')

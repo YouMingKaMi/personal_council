@@ -88,6 +88,16 @@
       "description": "先留住原话，按日期回看",
       "experimental": false,
       "module": "materials"
+    },
+    {
+      "id": "important-dates",
+      "parent": "space-archive",
+      "name": "重要日子",
+      "module": "dates",
+      "icon": "calendar",
+      "fields": [],
+      "description": "",
+      "experimental": false
     }
   ],
   "notes": [],
@@ -103,7 +113,8 @@
     "space-4",
     "space-5",
     "space-6",
-    "raw-materials"
+    "raw-materials",
+    "important-dates"
   ],
   "layout": [
     {
@@ -220,5 +231,6 @@
       "prices": {},
       "fx": {}
     }
-  }
+  },
+  "importantDates": []
 }
