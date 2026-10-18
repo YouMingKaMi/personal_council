@@ -8,3 +8,17 @@ const lunar={...e,calendar:'lunar',year:2025,month:6,day:1,leap:true};assert.equ
 assert.equal(occurrence({...lunar,leap:false,month:1},'2026-02-16').date,'2026-02-17');assert.equal(occurrence({...lunar,leap:false,month:1},'2026-02-18').date,'2027-02-06');
 const once={...e,repeat:'none',year:2026,month:10,day:18};assert.equal(occurrence(once,'2026-10-19').days,-1);assert.equal(reminders({importantDates:[once]},'2027-10-18').length,0);assert.throws(()=>validateEvent({...e,year:2026}));assert.throws(()=>validateEvent({...lunar,year:2026}));assert.throws(()=>validateEvent({...e,remindDays:3.5}));assert.equal(reminders({},'2026-10-18').length,0);
 console.log('Important dates: actual lunar conversion, leap month fallback, yearly rollover, leap day, Shanghai day counts, dismiss per occurrence, due-day reminder and optional legacy states passed.');
+// Interval schedules stay anchored to the original date, rather than drifting after a short month.
+const monthly={...e,year:2026,month:1,day:31,repeat:'monthly'};
+assert.equal(occurrence(monthly,'2026-02-01').date,'2026-02-28');assert.equal(occurrence(monthly,'2026-03-01').date,'2026-03-31');assert.equal(occurrence({...monthly,missing:'skip'},'2026-02-01').date,'2026-03-31');
+assert.equal(occurrence({...monthly,repeat:'custom',interval:2,unit:'month'},'2026-02-01').date,'2026-03-31');
+const weekly={...e,year:2026,month:10,day:18,repeat:'weekly'};
+assert.equal(occurrence(weekly,'2026-10-19').date,'2026-10-25');assert.equal(occurrence({...weekly,repeat:'custom',interval:2,unit:'week'},'2026-10-19').date,'2026-11-01');assert.equal(occurrence({...weekly,repeat:'custom',interval:3,unit:'day'},'2026-10-19').date,'2026-10-21');
+assert.equal(occurrence({...monthly,year:2024,month:2,day:29,repeat:'custom',interval:2,unit:'year'},'2026-03-01').date,'2028-02-29');
+const lunarMonth={...lunar,leap:false,repeat:'monthly'};
+assert.equal(occurrence(lunarMonth,'2025-06-26').date,'2025-07-25');assert.equal(occurrence({...lunarMonth,repeat:'custom',interval:2,unit:'month'},'2025-06-26').date,'2025-08-23');
+assert.throws(()=>validateEvent({...weekly,repeat:'custom',interval:0,unit:'week'}));assert.throws(()=>validateEvent({...weekly,repeat:'custom',interval:1,unit:'hour'}));
+const {lunarMonthName,lunarDayName,dateLabel}=await import('../static/important-dates-model.js');assert.equal(lunarMonthName(1),'正月');assert.equal(lunarMonthName(6,true),'闰六月');assert.equal(lunarDayName(9),'初九');assert.equal(lunarDayName(23),'廿三');assert.ok(dateLabel({...lunar,day:9}).includes('闰六月初九'));
+const nextReminder={...weekly,repeat:'monthly',dismissedOccurrence:'2026-10-18'};assert.equal(reminders({importantDates:[nextReminder]},'2026-11-15').length,1);
+const {createDatePicker}=await import('../static/date-picker.js');const picker=createDatePicker('2025-06-25','lunar');picker.shift(1);assert.ok(picker.html().includes('value="6L" selected'));assert.equal(picker.selected(),'2025-06-25');picker.select('2025-07-25');assert.ok(picker.html().includes('闰六月初一'));picker.setMode('solar');assert.ok(picker.html().includes('农历闰六月初一'));
+console.log('Dual calendar names, leap-month browsing, anchored weekly/monthly/custom intervals and recurrence-specific reminders passed.');

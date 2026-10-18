@@ -14,3 +14,10 @@ class ImportantDatesTests(unittest.TestCase):
             with self.subTest(update=update),self.assertRaises((ValueError,TypeError)):
                 validate_important_dates({'importantDates':[{**self.event(),**update}]})
         with self.assertRaises(ValueError):validate_important_dates({'importantDates':[self.event(),self.event()]})
+
+    def test_custom_and_legacy_recurrence(self):
+        for repeat in ('none','weekly','monthly','yearly'):
+            validate_important_dates({'importantDates':[{**self.event(),'repeat':repeat}]})
+        validate_important_dates({'importantDates':[{**self.event(),'repeat':'custom','interval':2,'unit':'week'}]})
+        for extra in ({'interval':0,'unit':'day'},{'interval':True,'unit':'week'},{'interval':2,'unit':'hour'}):
+            with self.assertRaises(ValueError):validate_important_dates({'importantDates':[{**self.event(),'repeat':'custom',**extra}]})
