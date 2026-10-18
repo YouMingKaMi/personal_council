@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {scheduled,toggleCheck,setNumber,addVersion} from '../static/tracking-model.js';
+import {progress} from '../static/model.js';
+import {monthSeries,monthSummary,chartValue} from '../static/habit-statistics.js';
+import {createHabits} from '../static/habits-feature.js';
+const base={id:'old',fromDate:'2026-10-01',name:'偶尔阅读',kind:'check',target:1,unit:'次',items:[],days:[0,1,2,3,4,5,6],enabled:true};
+const h={id:'casual',name:'偶尔阅读',versions:[base],entries:{},logs:{}};
+toggleCheck(h,'2026-10-01','now');addVersion(h,{...base,id:'casual-rule',fromDate:'2026-10-02',optional:true,days:[]});
+assert.equal(scheduled(h,'2026-10-01'),true);assert.equal(scheduled(h,'2026-10-02'),false);
+toggleCheck(h,'2026-10-03','now');assert.equal(h.entries['2026-10-03'].checked,true);
+const state={habits:[h],tasks:[],rules:[]};assert.equal(progress(state,'2026-10-03').total,0);assert.equal(progress(state,'2026-10-01').total,1);
+const feature=createHabits({state:()=>state,date:()=> '2026-10-03'});assert.ok(!feature.panel().includes('偶尔阅读'));
+const rows=monthSeries(h,'2026-10','','2026-10-10');assert.equal(rows[1].state,'unrecorded');assert.equal(rows[2].state,'complete');assert.equal(monthSummary(rows).missed,0);
+const n={id:'n',versions:[{...base,id:'n-v',kind:'number',optional:true,unit:'km',days:[]}],entries:{},logs:{}};setNumber(n,'2026-10-03',2,'now');const nr=monthSeries(n,'2026-10','','2026-10-10');assert.equal(monthSummary(nr,'km').total,2);assert.equal(chartValue(nr[1],'km'),null);assert.equal(monthSummary(nr,'km').average,2);
+assert.equal(h.entries['2026-10-01'].versionId,'old');assert.throws(()=>addVersion(h,{...base,id:'conflict',fromDate:'2026-10-03',optional:false}));
+console.log('Optional habits: no home/progress, recordable checks and numbers, neutral missing days, versioned history preserved.');

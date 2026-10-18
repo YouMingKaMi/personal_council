@@ -9,7 +9,7 @@ export function metric(h,date){
  return {config:c,entry:e,value,total,done,recorded,quantityKnown};
 }
 export function toggleCheck(h,date,now){const c=configAt(h,date);if(c?.kind!=='check')throw new Error('这一天不是纯打卡习惯');h.entries[date]={checked:!metric(h,date).done,versionId:c.id,updatedAt:now};}
-export function scheduled(h,date){const c=configAt(h,date);return !!c&&c.enabled&&c.days.includes(new Date(date+'T12:00:00+08:00').getUTCDay());}
+export function scheduled(h,date){const c=configAt(h,date);return !!c&&c.enabled&&!c.optional&&c.days.includes(new Date(date+'T12:00:00+08:00').getUTCDay());}
 export function setNumber(h,date,value,now){const c=configAt(h,date);if(!c||c.kind!=='number')throw new Error('这一天不是数值习惯');if(!Number.isFinite(value)||value<0)throw new Error('请输入不小于零的数值');h.entries[date]={value,versionId:c.id,updatedAt:now};}
 export function toggleItem(h,date,item,now){const c=configAt(h,date);if(!c||c.kind!=='checklist'||!c.items.some(i=>i.id===item))throw new Error('这一天没有这个项目');const previous=h.entries[date]?.items||{};h.entries[date]={items:{...previous,[item]:!previous[item]},versionId:c.id,updatedAt:now};}
 export function addVersion(h,config){const latest=[...h.versions].sort((a,b)=>b.fromDate.localeCompare(a.fromDate))[0];if(config.fromDate<latest.fromDate)throw new Error('生效日期不能早于最新一版规则');if(Object.keys(h.entries).some(d=>d>=config.fromDate))throw new Error('所选日期及之后已有记录，请选择这些记录之后的生效日期；历史数据不会被改写');h.versions=h.versions.filter(v=>v.fromDate!==config.fromDate);h.versions.push(config);}

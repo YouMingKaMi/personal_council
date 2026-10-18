@@ -87,6 +87,8 @@ def validate(state):
                 raise ValueError('习惯版本目标错误')
             if not isinstance(v.get('unit'), str) or not isinstance(v.get('enabled'), bool) or not isinstance(v.get('days'), list) or any(type(d) is not int or not 0 <= d <= 6 for d in v['days']):
                 raise ValueError('习惯版本频率错误')
+            if 'optional' in v and type(v['optional']) is not bool:
+                raise ValueError('随手记录设置无效')
             items = v.get('items', [])
             if not isinstance(items, list) or any(not isinstance(i,dict) or not isinstance(i.get('name'),str) or not i['name'].strip() or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',str(i.get('id',''))) for i in items):
                 raise ValueError('勾选项目错误')
