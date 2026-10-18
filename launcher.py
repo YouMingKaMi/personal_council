@@ -1,5 +1,6 @@
 """Start or reuse this local app and open its browser window."""
 import json
+import os
 import subprocess
 import sys
 import time
@@ -19,6 +20,21 @@ def running():
 if running():
     webbrowser.open(URL)
 else:
+    service = Path.home() / 'Library/LaunchAgents/com.youmingkami.personal-council.plist'
+    if sys.platform == 'darwin' and service.exists():
+        import plistlib
+        config = plistlib.loads(service.read_bytes())
+        if config.get('WorkingDirectory') != str(ROOT):
+            raise SystemExit('后台服务指向其它程序目录，请先停用旧服务。')
+        target = 'gui/' + str(os.getuid())
+        subprocess.run(['launchctl', 'bootstrap', target, str(service)], capture_output=True)
+        subprocess.run(['launchctl', 'kickstart', target + '/com.youmingkami.personal-council'], capture_output=True)
+        for _ in range(60):
+            if running():
+                webbrowser.open(URL)
+                raise SystemExit(0)
+            time.sleep(.1)
+        raise SystemExit('后台服务暂未启动，请查看 data/service-error.log。')
     process = subprocess.Popen([sys.executable, str(ROOT / 'server.py')], cwd=ROOT)
     for _ in range(60):
         if running():
