@@ -58,4 +58,4 @@
 .expense-month-comparison>button>b{font-weight:500;font-variant-numeric:tabular-nums}
 @media(max-width:550px){.expense-month-comparison{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-analysis>header{flex-wrap:wrap}}
 
-.expense-inline-category{display:flex;align-items:center;gap:6px;margin-top:4px}.expense-inline-category input{min-width:0;width:100%;flex:1;font-size:11px}.expense-inline-category .button{flex-shrink:0;font-size:10px;padding:5px 6px}
+.expense-inline-category{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:4px;margin-top:4px}.expense-inline-category input{min-width:0;width:100%;flex:1;font-size:11px}.expense-inline-category .button{justify-self:start;font-size:10px;padding:5px 6px}
