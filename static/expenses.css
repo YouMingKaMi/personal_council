@@ -41,9 +41,9 @@
 .expense-trend-heading h3{font-size:12px;font-weight:500;margin:0}
 .expense-trend-heading select{background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:2px;font-size:10px;padding:4px}
 .expense-trend-scroll{overflow-x:auto;scrollbar-width:thin}
-.expense-trend-chart{position:relative;display:grid;grid-template-columns:repeat(var(--months),minmax(0,1fr));height:245px;gap:10px;padding:0 10px;margin-top:10px}
+.expense-trend-chart{position:relative;display:grid;grid-template-columns:repeat(var(--months),minmax(0,1fr));height:var(--chart-height,180px);gap:10px;padding:0 10px;margin-top:10px}
 .expense-trend-zero{position:absolute;top:var(--baseline);border-top:1px solid var(--line);left:0;right:0;color:var(--muted);font-size:9px;font-style:normal;text-indent:2px}
-.expense-trend-month{position:relative;display:block;height:245px;border:0;background:transparent;color:var(--ink);font-size:10px;cursor:pointer;min-width:0;padding:0}
+.expense-trend-month{position:relative;display:block;height:var(--chart-height,180px);border:0;background:transparent;color:var(--ink);font-size:10px;cursor:pointer;min-width:0;padding:0}
 .expense-trend-month:focus-visible{outline:1px solid var(--muted)}
 .expense-trend-bar{position:absolute;left:25%;width:50%;background:var(--ink);border-radius:2px 2px 0 0;min-width:8px;opacity:.75;transition:opacity .15s}
 .expense-trend-bar.refund{background:var(--muted);border-radius:0 0 2px 2px}
