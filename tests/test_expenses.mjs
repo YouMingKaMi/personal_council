@@ -55,3 +55,18 @@ assert.equal(categoryActive(tree,'food-breakfast'),false);
 assert.equal(summary(tree,'2026-10',{categoryId:'food-meals'}).total,800);
 assert.match(csv(tree,'2026-10'),/餐饮 \/ 正餐 \/ 早餐/);
 console.log('Optional category hierarchy, parent aggregation, unsplit history, monthly comparisons, refunds and archived history passed');
+
+const {dailyTrend}=await import('../static/expenses-model.js');
+const daily={expenses:emptyExpenses()};
+saveEntry(daily,e('day-a',1000,'2026-10-01',{categoryId:'food-coffee'}));
+saveEntry(daily,e('day-b',3000,'2026-10-03'));
+saveEntry(daily,e('day-refund',500,'2026-10-04',{kind:'refund',refundOf:'day-a'}));
+saveEntry(daily,e('future-day',9000,'2026-10-25'));
+let dt=dailyTrend(daily,'2026-10','2026-10-10');
+assert.equal(dt.days.length,10);assert.equal(dt.total,3500);assert.equal(dt.average,350);assert.equal(dt.recordedDays,3);assert.equal(dt.spendingDays,2);assert.equal(dt.days[1].total,0);assert.equal(dt.days[3].total,-500);assert.equal(dt.peak.date,'2026-10-03');
+assert.equal(dailyTrend(daily,'2026-10','2026-10-10',{categoryId:'food-coffee'}).total,500);
+assert.equal(dailyTrend(daily,'2024-02','2026-10-10').days.length,29);
+assert.equal(dailyTrend(daily,'2026-11','2026-10-10').average,null);
+assert.equal(dailyTrend(daily,'2026-09','2026-10-10').average,0);
+assert.equal(dailyTrend(daily,'2026-10','2026-11-01').total,12500);
+console.log('Daily expense trends: calendar averages, blank days, refunds, future dates, filters and leap months passed');

@@ -31,3 +31,13 @@ export const categoryActive=(s,id)=>categoryPath(s,id).length>0&&categoryPath(s,
 export function categoryTree(s,parent=null){return ledger(s).categories.filter(c=>(c.parentId||null)===parent).flatMap(c=>[c,...categoryTree(s,c.id)]);}
 export function saveCategory(s,{id,name,parentId=null}){const l=ensure(s),old=l.categories.find(c=>c.id===id);name=name.trim();parentId=parentId||null;if(!name||name.length>30)throw Error('分类名称应为 1—30 字');if(old&&parentId!==(old.parentId||null))throw Error('已有分类的上级保持不变，可另建新分类');if(parentId&&(!l.categories.some(c=>c.id===parentId)||(!old&&!categoryActive(s,parentId))))throw Error('上级分类不存在或已停用');if(categoryPath(s,parentId).length>=5)throw Error('分类最多支持五级');if(l.categories.some(c=>c.id!==id&&(c.parentId||null)===parentId&&c.name===name))throw Error('这一层已有同名分类');if(old)old.name=name;else{if(l.categories.length>=100)throw Error('最多支持 100 个分类');l.categories.push({id,name,parentId,archived:false});}}
 export function monthlyTrend(s,endMonth,count=6,filters={}){const [y,m]=endMonth.split('-').map(Number);return Array.from({length:count},(_,i)=>{const date=new Date(Date.UTC(y,m-count+i,1)),month=date.toISOString().slice(0,7);return {month,...summary(s,month,filters)};}).filter(r=>r.month>='1901-01');}
+
+// Calendar-day averages include blank dates, through today for the current month.
+export function dailyTrend(s,month,asOf,{categoryId='',necessity=''}={}){
+ const [y,m]=month.split('-').map(Number),last=new Date(Date.UTC(y,m,0)).getUTCDate(),count=month<asOf.slice(0,7)?last:month===asOf.slice(0,7)?Number(asOf.slice(8)):0;
+ const rows=entriesFor(s,month).filter(e=>e.date<=asOf&&categoryMatches(s,e.categoryId,categoryId)&&(!necessity||e.necessity===necessity));
+ const days=Array.from({length:count},(_,i)=>({date:month+'-'+String(i+1).padStart(2,'0'),total:0,gross:0,refunds:0,count:0})),by=new Map(days.map(d=>[d.date,d]));
+ for(const e of rows){const d=by.get(e.date);if(!d)continue;d.count++;d.total+=e.kind==='refund'?-e.amountCents:e.amountCents;d[e.kind==='refund'?'refunds':'gross']+=e.amountCents;}
+ const total=days.reduce((n,d)=>n+d.total,0),recordedDays=days.filter(d=>d.count).length,spendingDays=days.filter(d=>d.gross>0).length,peak=days.reduce((best,d)=>!best||d.total>best.total?d:best,null);
+ return {days,total,recordedDays,spendingDays,average:count?total/count:null,recordedAverage:recordedDays?total/recordedDays:null,peak};
+}
