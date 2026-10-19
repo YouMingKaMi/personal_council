@@ -23,7 +23,7 @@ export function recordBill(s,id,entry){const bill=ensure(s).subscriptions.find(b
 export function csv(s,month){const rows=[['日期','内容','金额（元）','类型','必要性','用途','关联原消费ID'],...entriesFor(s,month).map(e=>[e.date,e.title,((e.kind==='refund'?-1:1)*e.amountCents/100).toFixed(2),e.kind==='refund'?'退款':'消费',necessities[e.necessity],categoryLabel(s,e.categoryId),e.refundOf||''])];return '\uFEFF'+rows.map(row=>row.map((x,i)=>'"'+(i===2?String(x):String(x).replace(/^[=+@\-\t\r]/,"'$&")).replace(/"/g,'""')+'"').join(',')).join('\r\n');}
 
 // A category can be selected at any level; ancestors aggregate descendants once.
-export const foodSubcategories=[['food-coffee','咖啡','food'],['food-meals','正餐','food'],['food-breakfast','早餐','food-meals'],['food-lunch','午餐','food-meals'],['food-dinner','晚餐','food-meals']];
+export const foodSubcategories=[['food-coffee','咖啡','food'],['food-meals','正餐','food']];
 export function categoryPath(s,id){const map=new Map(ledger(s).categories.map(c=>[c.id,c])),path=[],seen=new Set();while(id&&map.has(id)&&!seen.has(id)){seen.add(id);const c=map.get(id);path.unshift(c);id=c.parentId;}return path;}
 export const categoryLabel=(s,id)=>categoryPath(s,id).map(c=>c.name).join(' / ')||'其他';
 export const categoryMatches=(s,id,parent)=>!parent||categoryPath(s,id).some(c=>c.id===parent);

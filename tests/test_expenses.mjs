@@ -29,6 +29,8 @@ console.log('expense cents, month boundaries, refunds, updates, removal/restore,
 // Descendant filters and sibling breakdowns must never double-count leaf entries.
 const {categoryPath,categoryLabel,categoryMatches,categoryActive,saveCategory,monthlyTrend}=await import('../static/expenses-model.js');
 const tree={expenses:emptyExpenses()};
+assert.deepEqual(tree.expenses.categories.filter(c=>c.parentId).map(c=>c.name),['咖啡','正餐']);
+saveCategory(tree,{id:'food-breakfast',name:'早餐',parentId:'food-meals'}); // Custom nesting remains supported, without preset meal periods.
 saveEntry(tree,e('coffee',1800,'2026-10-19',{categoryId:'food-coffee'}));
 saveEntry(tree,e('breakfast',800,'2026-10-18',{categoryId:'food-breakfast'}));
 saveEntry(tree,e('unsplit',1000,'2026-10-18'));
