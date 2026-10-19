@@ -46,3 +46,24 @@ class ExpenseTests(unittest.TestCase):
             out=p/'bundle.zip';create_bundle(repo.db,out);restore(out,p/'restored')
             with closing(sqlite3.connect(p/'restored'/'personal.sqlite3')) as c:
                 body=json.loads(c.execute("SELECT body FROM spaces WHERE name='main'").fetchone()[0]);self.assertEqual(body['expenses'],x);self.assertEqual(body['treasury'],before['state']['treasury'])
+
+    def test_category_tree_legacy_cycles_depth_and_roundtrip(self):
+        x=self.ledger();x['categories'] += [dict(id='coffee',name='咖啡',parentId='food',archived=False),dict(id='meals',name='正餐',parentId='food',archived=False),dict(id='breakfast',name='早餐',parentId='meals',archived=False)]
+        x['entries']=[self.entry(categoryId='breakfast')];validate_expenses(dict(expenses=x))
+        for change in (dict(parentId='missing'),dict(parentId='coffee'),dict(parentId=True)):
+            bad=copy.deepcopy(x);bad['categories'][1].update(change)
+            with self.assertRaises(ValueError):validate_expenses(dict(expenses=bad))
+        bad=copy.deepcopy(x);bad['categories'][0]['parentId']='breakfast'
+        with self.assertRaises(ValueError):validate_expenses(dict(expenses=bad))
+        bad=copy.deepcopy(x);bad['categories'].append(dict(id='copy',name='咖啡',parentId='food',archived=False))
+        with self.assertRaises(ValueError):validate_expenses(dict(expenses=bad))
+        deep=self.ledger()
+        for n in range(5):deep['categories'].append(dict(id='level'+str(n),name='level'+str(n),parentId='food' if n==0 else 'level'+str(n-1),archived=False))
+        with self.assertRaises(ValueError):validate_expenses(dict(expenses=deep))
+        # Archived branches remain valid so their historical records are retained.
+        x['categories'][0]['archived']=True;validate_expenses(dict(expenses=x))
+        with tempfile.TemporaryDirectory() as t:
+            p=Path(t);repo=Repository(p/'data');before=repo.read('main');before['state']['expenses']=x
+            repo.save('main',before['revision'],before['state']);out=p/'bundle.zip';create_bundle(repo.db,out);restore(out,p/'restored')
+            with closing(sqlite3.connect(p/'restored'/'personal.sqlite3')) as c:
+                self.assertEqual(json.loads(c.execute("SELECT body FROM spaces WHERE name='main'").fetchone()[0])['expenses'],x)

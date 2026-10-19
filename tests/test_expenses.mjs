@@ -25,3 +25,31 @@ assert.throws(()=>recordBill(s,'bill',e('dup',3600,'2026-02-01',{billedOccurrenc
 assert.equal(s.treasury.accounts[0].amount,'100');
 saveEntry(s,e('csv',10,'2026-10-18',{title:'=HYPERLINK("x")'}));assert.match(csv(s,'2026-10'),/'=HYPERLINK/);
 console.log('expense cents, month boundaries, refunds, updates, removal/restore, recurring payments, duplicate guard and treasury isolation passed');
+
+// Descendant filters and sibling breakdowns must never double-count leaf entries.
+const {categoryPath,categoryLabel,categoryMatches,categoryActive,saveCategory,monthlyTrend}=await import('../static/expenses-model.js');
+const tree={expenses:emptyExpenses()};
+saveEntry(tree,e('coffee',1800,'2026-10-19',{categoryId:'food-coffee'}));
+saveEntry(tree,e('breakfast',800,'2026-10-18',{categoryId:'food-breakfast'}));
+saveEntry(tree,e('unsplit',1000,'2026-10-18'));
+saveEntry(tree,e('lastcoffee',1600,'2026-09-05',{categoryId:'food-coffee'}));
+assert.equal(categoryLabel(tree,'food-breakfast'),'餐饮 / 正餐 / 早餐');
+assert.equal(categoryMatches(tree,'food-breakfast','food'),true);
+assert.equal(summary(tree,'2026-10',{categoryId:'food'}).total,3600);
+assert.equal(summary(tree,'2026-10',{categoryId:'food-meals'}).total,800);
+assert.equal(summary(tree,'2026-10',{categoryId:'food-coffee'}).total,1800);
+assert.equal(summary(tree,'2026-10').categories.reduce((n,c)=>n+c.total,0),3600);
+assert.equal(summary(tree,'2026-10',{categoryId:'food'}).categories.reduce((n,c)=>n+c.total,0),3600);
+assert.equal(tree.expenses.entries.find(e=>e.id==='unsplit').categoryId,'food');
+const trend=monthlyTrend(tree,'2026-10',6,{categoryId:'food-coffee'});
+assert.equal(trend.length,6);assert.equal(trend[0].count,0);assert.equal(trend.at(-2).total,1600);assert.equal(trend.at(-1).total,1800);
+saveEntry(tree,e('refundcoffee',300,'2026-11-01',{kind:'refund',refundOf:'coffee'}));
+assert.equal(summary(tree,'2026-11',{categoryId:'food-coffee'}).total,-300);
+saveCategory(tree,{id:'custom',name:'下午茶',parentId:'food'});assert.equal(categoryPath(tree,'custom').length,2);
+assert.throws(()=>saveCategory(tree,{id:'duplicate',name:'下午茶',parentId:'food'}));
+saveCategory(tree,{id:'other-tea',name:'下午茶',parentId:'leisure'}); // Names may repeat in different branches.
+tree.expenses.categories.find(c=>c.id==='food-meals').archived=true;
+assert.equal(categoryActive(tree,'food-breakfast'),false);
+assert.equal(summary(tree,'2026-10',{categoryId:'food-meals'}).total,800);
+assert.match(csv(tree,'2026-10'),/餐饮 \/ 正餐 \/ 早餐/);
+console.log('Optional category hierarchy, parent aggregation, unsplit history, monthly comparisons, refunds and archived history passed');

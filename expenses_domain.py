@@ -26,6 +26,22 @@ def validate_expenses(state):
     for c in categories:
         if not isinstance(c.get('name'), str) or not c['name'].strip() or len(c['name']) > 30 or type(c.get('archived')) is not bool:
             raise ValueError('花销用途无效')
+    category_map = {c['id']:c for c in categories}
+    names = set()
+    for c in categories:
+        parent = c.get('parentId')
+        if parent is not None and (not isinstance(parent,str) or parent not in category_map):
+            raise ValueError('上级分类不存在')
+        key = (parent, c['name'].strip())
+        if key in names:raise ValueError('同层分类名称重复')
+        names.add(key)
+        seen = {c['id']}
+        while parent:
+            if parent in seen:raise ValueError('分类不能循环嵌套')
+            seen.add(parent)
+            if len(seen)>5:raise ValueError('分类最多支持五级')
+            parent = category_map[parent].get('parentId')
+            if parent is not None and (not isinstance(parent,str) or parent not in category_map):raise ValueError('上级分类不存在')
     def date(d):
         if not isinstance(d,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',d) or not '1901-01-01' <= d <= '2099-12-31':
             raise ValueError('花销日期无效')
