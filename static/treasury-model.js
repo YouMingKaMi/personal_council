@@ -39,3 +39,39 @@ export function totalUsd(p){
  const assets=p.assets.filter(a=>a.category==='crypto'&&!a.archived),rows=assets.map(a=>assetValueUsd(p,a)),known=rows.filter(r=>r.value!==null);
  return {value:known.length?known.reduce((sum,r)=>sum+r.value,0n):assets.length?null:0n,assets:assets.length,missing:rows.filter(r=>!r.complete).length,converted:rows.some(r=>r.converted)};
 }
+
+// Apply exact quantity deltas to a known balance, never infer an unknown balance as zero.
+export function adjustAccount(t,id,direction,input,at){
+ const r=t.accounts.find(r=>r.id===id),a=t.assets.find(a=>a.id===r?.assetId);
+ if(!r||!a||r.archived||a.archived)throw Error('请先恢复这个账户及其资产');
+ if(r.amount===null)throw Error('请先填写当前余额，再记录增减');
+ if(!['add','subtract'].includes(direction))throw Error('请选择增加或减少');
+ const amount=decimal(input);if(amount<=0n)throw Error('增减数额必须大于零');
+ const before=decimal(r.amount),next=before+(direction==='add'?amount:-amount);
+ if(next<0n)throw Error('减少数额不能超过当前余额');
+ const result=quantity(next);decimal(result);r.amount=result;r.updatedAt=at;
+ return {before:quantity(before),after:result,amount:quantity(amount),unit:a.unit};
+}
+export function scopedValue(p,scope={kind:'total'}){
+ if(scope.kind==='total'||scope.kind==='category'){const v=total(p,scope.kind==='category'?scope.id:null);return {value:v.complete?v.value:null,partial:v.value,complete:v.complete,amount:null};}
+ const a=scope.kind==='asset'?p.assets.find(a=>a.id===scope.id):p.assets.find(a=>a.id===p.accounts.find(r=>r.id===scope.id)?.assetId);
+ if(!a)return {value:null,complete:false,amount:null};
+ if(scope.kind==='asset'){const v=assetValue(p,a);return {value:v.complete?v.value:null,complete:v.complete,amount:v.known?v.amount:null};}
+ const r=p.accounts.find(r=>r.id===scope.id);if(!r||r.amount===null)return {value:null,complete:false,amount:null};
+ const amount=decimal(r.amount),price=pricing(p,a).cny,value=price!==null||amount===0n?(amount*(price??0n)+SCALE/2n)/SCALE:null;
+ return {value,complete:value!==null,amount};
+}
+export function treasuryTrend(t,scope={kind:'total'},{from=null,to=new Date().toISOString()}={}){
+ const end=Date.parse(to),start=from?Date.parse(from):-Infinity,points=[];
+ const add=(at,p,label,id)=>{const time=Date.parse(at);if(!Number.isFinite(time)||time>end)return;const v=scopedValue(p,scope);points.push({at,time,label,id,...v});};
+ const changes=[...t.changes].filter(c=>Number.isFinite(Date.parse(c.at))).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ // A before point has no inferred earlier date: it is the balance immediately before the first retained change.
+ if(changes.length)add(changes[0].at,changes[0].before,'最早保留变更 · 修改前','before');
+ for(const c of changes)add(c.at,c.after,c.label,c.id);
+ for(const s of t.snapshots){const day=new Date(s.createdAt).toLocaleDateString('sv-SE',{timeZone:'Asia/Shanghai'});add(day===s.date?s.createdAt:s.date+'T12:00:00+08:00',s.portfolio,'盘点：'+s.label,s.id);}
+ add(to,t,'当前记录','current');points.sort((a,b)=>a.time-b.time);
+ // Remove unchanged values but keep gaps for unfilled balances/prices.
+ const filtered=points.filter(p=>p.time>=start),out=[];
+ for(const p of filtered){const prev=out.at(-1);if(prev&&prev.value===p.value&&prev.amount===p.amount&&p.id!=='current'&&prev.id!=='before')continue;out.push(p);}
+ return out;
+}
