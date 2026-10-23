@@ -117,6 +117,16 @@
       "fields": [],
       "description": "消费、预算与周期账单",
       "experimental": false
+    },
+    {
+      "id": "idea-inbox",
+      "name": "想法暂存",
+      "module": "ideas",
+      "parent": "space-0",
+      "icon": "spark",
+      "fields": [],
+      "description": "",
+      "experimental": false
     }
   ],
   "notes": [],
