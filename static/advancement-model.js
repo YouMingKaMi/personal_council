@@ -9,7 +9,7 @@ export const issues=(s,d)=>data(s).issues.filter(p=>p.domainId===d&&!p.deleted);
 export const format=ms=>{const m=Math.floor(Math.max(0,ms)/60000),h=Math.floor(m/60);return h?`${h}h${String(m%60).padStart(2,'0')}m`:`${m}m`;};
 export const clock=ms=>{const t=Math.floor(Math.max(0,ms)/1000);return [Math.floor(t/3600),Math.floor(t/60)%60,t%60].map(x=>String(x).padStart(2,'0')).join(':');};
 export function activeMs(r,now=Date.now()){return r?r.segments.reduce((s,r)=>s+r.end-r.start,0)+(r.status==='running'?Math.max(0,Math.min(now,r.lastSeen+60000)-r.segmentStart):0):0;}
-export function interval(day){const start=new Date(day+'T00:00:00');const end=new Date(start);end.setDate(end.getDate()+1);return [start.getTime(),end.getTime()];}
+export function interval(day){const start=Date.parse(day+'T00:00:00+08:00');return [start,start+86400000];}
 export function total(s,{start,end,domainId,problemId,planId,now=Date.now()}={}){
  const a=data(s),lo=start?interval(start)[0]:-Infinity,hi=end?interval(end)[1]:Infinity;
  let sum=0;
