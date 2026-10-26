@@ -67,6 +67,7 @@ def validate_advancement(state):
             if end<start:raise ValueError('计时结束早于开始')
             if end>start:spans.append((start,end))
     for s in a['sessions']:
+        if 'cancelled' in s and type(s['cancelled']) is not bool:raise ValueError('计时取消状态无效')
         belongs(s);day(s.get('date'));text(s.get('title'),300);text(s.get('note'))
         if type(s.get('deleted')) is not bool or type(s.get('manual')) is not bool:raise ValueError('计时记录状态无效')
         number(s.get('durationMs'))

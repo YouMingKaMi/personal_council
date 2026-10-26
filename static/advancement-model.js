@@ -21,3 +21,11 @@ export function total(s,{start,end,domainId,problemId,now=Date.now()}={}){
 }
 export function weekStart(day){const d=new Date(day+'T12:00:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 export function current(s,d){const a=data(s),field=a.domains.find(x=>x.id===d);return a.issues.find(p=>p.id===field?.focusId&&!p.deleted&&p.status!=='resolved'&&p.status!=='parked')||issues(s,d).find(p=>p.status==='active')||issues(s,d).find(p=>p.status==='open');}
+
+// An activity may fall back to the issue title; display that text only once.
+export function timerText(timer,problem){
+ const subject=problem?.title?.trim()||timer?.title?.trim()||'自由推进';
+ const activity=timer?.title?.trim()||'';
+ const normal=s=>s.replace(/\s+/g,' ').trim();
+ return {subject,action:activity&&normal(activity)!==normal(subject)?activity:''};
+}

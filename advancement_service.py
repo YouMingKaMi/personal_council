@@ -65,6 +65,12 @@ def add_update(state,p,id,at):
 def mutate(state,c,now):
     a=state.setdefault('advancement',empty(state));op=c.get('op');at=stamp(now)
     if op=='init' or op=='reconcile':return
+    if op=='discard':
+        r=a.get('active')
+        if not r or r['id']!=c.get('id'):raise ValueError('当前计时已变化，请刷新后取消')
+        mutate(state,{'op':'finish','id':r['id']},now)
+        a['sessions'][-1].update(deleted=True,cancelled=True)
+        return
     if op=='switch':
         r=a.get('active')
         if not r or r['id']!=c.get('id'):raise ValueError('当前计时已变化，请刷新后切换')

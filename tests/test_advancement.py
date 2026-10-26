@@ -89,6 +89,26 @@ class AdvancementTest(unittest.TestCase):
    req=urllib.request.Request(relay.origin+'/api/config',headers={'Cookie':'capture_session='+relay.tokens['phoneToken']})
    with urllib.request.urlopen(req) as response:self.assertEqual(json.load(response)['domains'],config['domains'])
   finally:server.shutdown();server.server_close();thread.join()
+ def test_discard_running_and_paused_timer_is_recoverable_and_idempotent(self):
+  self.problem()
+  self.call('update',domainId='ai-field',problemId='problem-1',date='2027-01-15',body='保留已写下的进展')
+  self.call('manual',domainId='ai-field',date='2027-01-15',durationMs=600000)
+  s=self.call('start',domainId='ai-field',problemId='problem-1',title='误触',owner='window-a',date='2027-01-15')
+  rid=s['advancement']['active']['id'];self.call('pause',at=self.clock+3,id=rid)
+  before=copy.deepcopy(self.repo.read('main')['state']['advancement'])
+  c={'op':'discard','commandId':'cancel-once','id':rid}
+  with ThreadPoolExecutor(max_workers=3) as pool:list(pool.map(lambda _:command(self.repo,'main',c,self.clock+10),range(3)))
+  a=self.repo.read('main')['state']['advancement'];self.assertIsNone(a['active'])
+  self.assertEqual(a['issues'],before['issues']);self.assertEqual(a['updates'],before['updates'])
+  self.assertEqual(len(a['sessions']),2);row=a['sessions'][-1]
+  self.assertTrue(row['deleted']);self.assertTrue(row['cancelled']);self.assertEqual(row['durationMs'],3000)
+  self.assertEqual(sum(s['durationMs'] for s in a['sessions'] if not s['deleted']),600000)
+  s=self.call('session-edit',id=rid,deleted=False);self.assertFalse(s['advancement']['sessions'][-1]['deleted'])
+  s=self.call('start',at=self.clock+20,domainId='ai-field',owner='window-a',date='2027-01-15');new_id=s['advancement']['active']['id']
+  with self.assertRaises(ValueError):self.call('discard',at=self.clock+21,id=rid)
+  self.assertEqual(self.repo.read('main')['state']['advancement']['active']['id'],new_id)
+  s=self.call('discard',at=self.clock+23,id=new_id);self.assertEqual(s['advancement']['sessions'][-1]['durationMs'],3000)
+  validate(s)
  def test_integrity_trash_task_and_manual_edit(self):
   p=self.problem();s=self.call('task',id=p['id'],date='2027-01-16',title='做一次复现');self.assertEqual(s['tasks'][-1]['advancementProblemId'],p['id'])
   self.call('problem-trash',id=p['id']);s=self.call('problem-trash',id=p['id'],deleted=False);self.assertFalse(s['advancement']['issues'][0]['deleted'])
