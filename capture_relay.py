@@ -114,8 +114,11 @@ def handler(relay):
                 if path=='/api/submit' and post: return self.send(relay.receive(data))
                 with relay.connect() as c:
                     if path=='/bridge/config' and post:
-                        if not isinstance(data,dict) or data.get('version')!=1 or set(data)!={'version','kinds','categories','habits'}:
+                        if not isinstance(data,dict) or data.get('version')!=1 or not {'version','kinds','categories','habits'}<=set(data)<= {'version','kinds','categories','habits','domains','problems'}:
                             raise ValueError('表单配置不兼容')
+                        for field,keys in [('domains',{'id','name'}),('problems',{'id','domainId','title'})]:
+                            rows=data.get(field,[])
+                            if not isinstance(rows,list) or len(rows)>20000 or any(not isinstance(r,dict) or set(r)!=keys or any(not isinstance(v,str) for v in r.values()) for r in rows):raise ValueError('推进表单配置无效')
                         c.execute('INSERT OR REPLACE INTO config VALUES (1,?)',(canonical(data),))
                         return self.send({'ok':True})
                     if path=='/api/config' and not post:

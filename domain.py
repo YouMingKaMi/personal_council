@@ -175,5 +175,8 @@ def validate(state):
     for group,ids in orders.items():
         if not isinstance(group,str) or not re.fullmatch(r'[A-Za-z0-9_:-]{1,160}',group) or not isinstance(ids,list) or len(ids)>20000 or any(not isinstance(x,str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',x) for x in ids) or len(ids)!=len(set(ids)):
             raise ValueError('卡片排序项目无效')
+    if 'advancement' in state:
+        from advancement_domain import validate_advancement
+        validate_advancement(state)
     validate_treasury(state.get('treasury'))
     return state

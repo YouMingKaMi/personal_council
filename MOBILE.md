@@ -55,3 +55,12 @@ Mac 数据目录的 `mobile-bridge.json`（0600）含 `url`、`desktopToken`。�
 ## 验证
 
 `tests/test_mobile_capture.py` 覆盖：Unicode 原文、所有首版文本类型、金额与日期校验、未知版本/字段、重复 ID 内容冲突、并发确认、分类失效、习惯历史保护、事务回执、备份恢复、手机/电脑权限隔离及完整中转流程。另运行原有 Python 与 Node 回归，并在独立测试数据下做手机尺寸与电脑 UI 验证。
+
+## 个人推进台扩展（2026-10-26）
+
+原 v1 六类提交字段不变。新增两个 kind：
+
+- `problem`：date、domainId、title，body / next 可省略；创建独立问题并保留实际记录日期。
+- `progress`：date、domainId、body，problemId 可为 null；进入领域进展或对应问题。
+
+配置在已启用推进台时增加 domains（仅 id/name）与 problems（仅未解决、未移除问题的 id/domainId/title）。不会发布问题正文、进展正文、计时明细或领域目标。手机和电脑检查表单共用同一适配器，领域变化后清空问题选择；失效领域／问题明确报错，原提交保留，允许检查修改后确认。新中转站同时接受旧四字段配置和扩展配置，旧离线消费／任务请求仍可确认。

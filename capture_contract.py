@@ -8,9 +8,11 @@ import math
 import re
 
 KINDS = {'expense': '花销', 'task': '每日任务', 'chronicle': '编年史',
-         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录'}
+         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展'}
 FIELDS = {
     'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity'},
+    'problem': {'date','domainId','title','body','next'},
+    'progress': {'date','domainId','problemId','body'},
     'task': {'date', 'title'}, 'chronicle': {'date', 'text', 'endDate'},
     'ideas': {'date', 'body'}, 'materials': {'date', 'body'},
     'habit': {'date', 'habitId', 'versionId', 'kind', 'value', 'checked', 'items'},
@@ -50,6 +52,15 @@ def envelope(value):
     if kind not in KINDS or not isinstance(p, dict) or set(p) - FIELDS[kind]:
         raise ValueError('功能或字段不兼容，不能忽略未知字段')
     day(p.get('date'))
+    if kind in ('problem','progress'):
+        identifier(p.get('domainId'))
+        if kind=='problem':
+            text(p.get('title'),300)
+            for key in ('body','next'):
+                if not isinstance(p.get(key,''),str) or len(p.get(key,''))>100000:raise ValueError('问题内容无效')
+        else:
+            text(p.get('body'))
+            if p.get('problemId') is not None:identifier(p['problemId'])
     if kind in ('task', 'expense'):
         text(p.get('title'), 120)
     if kind in ('ideas', 'materials'):
@@ -105,14 +116,24 @@ def form_config(state):
     habits = [{'id': h['id'], 'name': h['name'], 'versions': [
         {k: v[k] for k in ('id','fromDate','kind','name','unit','items','enabled','target') if k in v}
         for v in h.get('versions', [])]} for h in state['habits'] if h.get('versions')]
-    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits}
+    advancement=state.get('advancement',{})
+    fields=[{'id':d['id'],'name':d['name']} for d in advancement.get('domains',[]) if not d['archived']]
+    field_ids={d['id'] for d in fields}
+    if not fields:
+        kinds={k:v for k,v in kinds.items() if k not in ('problem','progress')}
+    problems=[{k:p[k] for k in ('id','domainId','title')} for p in advancement.get('issues',[]) if p['domainId'] in field_ids and not p['deleted'] and p['status'] in ('open','active')]
+    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems} if 'advancement' in state else {})}
 
 def apply_capture(state, submission):
     from domain import validate
     envelope(submission)
     kind, p = submission['kind'], submission['payload']
     record_id, stamp = 'mobile-' + submission['id'], now()
-    if kind in ('ideas', 'materials'):
+    if kind in ('problem','progress'):
+        from advancement_service import add_issue,add_update
+        if kind=='problem':add_issue(state,p,record_id,stamp)
+        else:add_update(state,p,record_id,stamp)
+    elif kind in ('ideas', 'materials'):
         folder = next((f for f in state['folders'] if f.get('module') == kind), None)
         if not folder: raise ValueError('对应记录空间已不存在，请先恢复空间')
         if any(n['id'] == record_id for n in state['notes']): raise ValueError('记录标识冲突')

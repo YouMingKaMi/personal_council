@@ -63,6 +63,13 @@ def archive(state):
         z.writestr('国库/当前账户明细.csv', '\ufeff' + csv_data.getvalue())
         for snapshot in treasury.get('snapshots', []):
             z.writestr('国库/盘点/' + snapshot['date'] + '--' + snapshot['id'] + '.json', json.dumps(snapshot,ensure_ascii=False,indent=2))
+        a=state.get('advancement',{})
+        for d in a.get('domains',[]):
+            lines=['# '+d['name'],d.get('goal',''),'']
+            for p in (p for p in a.get('issues',[]) if p['domainId']==d['id']):
+                lines.extend(['## '+p['title'],'状态：'+p['status']+('（回收站）' if p.get('deleted') else ''),p['body'],'下一步：'+p['next'],'结论：'+p['conclusion']])
+                lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('problemId')==p['id'])
+            z.writestr('个人推进台/'+clean(d['name'])+'--'+d['id']+'.md','\n\n'.join(lines))
         z.writestr('说明.txt', 'personal-system.json 是完整恢复文件。笔记目录为可独立阅读的 Markdown 正文。任务、习惯、字段和布局保存在 JSON 中。国库目录含当前账户明细与固定盘点副本。外部附件尚未迁移。')
     return stream.getvalue()
 
@@ -149,6 +156,9 @@ def handler(repo, backup=None, mobile=None):
                 if size <= 0 or size > 25_000_000:
                     return self.send({'error': '请求大小超出限制'}, 413)
                 data = json.loads(self.rfile.read(size))
+                if path == '/api/advancement':
+                    from advancement_service import command
+                    return self.send(command(repo,space,data))
                 if path.startswith('/api/mobile-inbox/'):
                     connection = capture()
                     if space != 'main': return self.send({'error':'测试空间不能处理手机记录'},403)

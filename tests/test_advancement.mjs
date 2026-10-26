@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {total,activeMs,clock,weekStart,interval} from '../static/advancement-model.js';
+const [a,b]=interval('2026-10-26');
+const s={advancement:{sessions:[{domainId:'ai',segments:[{start:b-1800000,end:b+1800000}],manual:false,deleted:false},{domainId:'ai',date:'2026-10-26',durationMs:600000,segments:[],manual:true,deleted:false}],active:null}};
+assert.equal(total(s,{start:'2026-10-26',end:'2026-10-26'}),2400000);
+assert.equal(total(s,{start:'2026-10-27',end:'2026-10-27'}),1800000);
+assert.equal(total(s,{domainId:'other'}),0);
+assert.equal(weekStart('2026-10-25'),'2026-10-19');
+assert.equal(clock(3661000),'01:01:01');
+assert.equal(activeMs({segments:[],status:'running',segmentStart:a,lastSeen:a+15000},a+10000000),75000);
+s.advancement.sessions[0].deleted=true;assert.equal(total(s),600000);
+console.log('Advancement totals, midnight allocation, deleted and manual records passed');

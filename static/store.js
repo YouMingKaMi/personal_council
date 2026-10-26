@@ -13,3 +13,9 @@ export async function refreshMarket(force=false){
  try{const d=await api('/api/market/refresh',{revision,force});state=d.state;revision=d.revision;return d;}
  finally{busy=false;}
 }
+
+export async function advance(command){
+ if(busy)throw new Error('正在保存，请稍候');busy=true;
+ try{const d=await api('/api/advancement',command);state=d.state;revision=d.revision;return d;}
+ finally{busy=false;}
+}

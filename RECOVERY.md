@@ -65,3 +65,5 @@ python3 server.py --data '/完整路径/new-data'
 请只在可信的程序版本上恢复自己的备份。
 
 换机建议将恢复后的程序目录放到 `~/Library/Application Support/个人决策团`。确认数据恢复后，双击“启用后台常驻.command”；首次启用前关闭原启动窗口。后台注册记录不会随 GitHub 或云盘数据自动恢复，需要在新 Mac 上重新启用。
+
+个人推进台也在完整数据库与 JSON 中，包含领域、问题、进展、时间记录和当前计时。恢复后，已中断的计时会暂停在最后确认时刻；需要时可补记。推进台可读 Markdown 包含问题和进展，完整时长明细以恢复文件为准。恢复新数据时使用包含 advancement_service.py 与 advancement_domain.py 的匹配新版程序，升级前的数据库与旧程序另留在本机 backups/before-advancement-*，不要直接覆盖当前数据。
