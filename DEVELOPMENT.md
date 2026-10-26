@@ -69,3 +69,6 @@ dashboard-layout.js 只操作当前 dashboard 的展示位置：使用现有 gri
 执行部中的 `ideas` 页面将每条想法存为普通 notes，沿用现有备份与只读查询，无数据库版本变更。首次加载工作区时补建缺失入口，使用现有 revision 冲突保护；不自动置顶，不加入首页或进度统计。Enter 保存，Shift+Enter 换行，输入法选词不提交。草稿按数据空间和入口隔离，保存在当前浏览器，不属于已保存记录或云盘备份。编辑保留原日期，移除使用软删除并可恢复。
 
 验证：`node tests/test_ideas.mjs` 和 `tests/test_ideas_storage.py`，覆盖输入法、重复提交、失败保留草稿、原文保存、日期排序、回收站及备份恢复。
+
+
+手机录入 v1：独立 HTTPS capture_relay 暂存结构化请求；Mac mobile_bridge 主动拉取，mobile_inbox 在同一 SQLite 事务中保存业务状态、快照与幂等回执。schemaVersion 8 不变，不覆盖既有记录。手机/电脑凭证分权，仅上传表单配置；所有凭证不进 Git。遵循 MOBILE.md 固定契约，回归含旧格式、重复、并发、角色边界与备份恢复。

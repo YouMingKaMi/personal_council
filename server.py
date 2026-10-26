@@ -67,7 +67,14 @@ def archive(state):
     return stream.getvalue()
 
 
-def handler(repo, backup=None):
+def handler(repo, backup=None, mobile=None):
+    def capture():
+        nonlocal mobile
+        if mobile is None:
+            from mobile_inbox import MobileInbox
+            from mobile_bridge import MobileBridge
+            mobile = MobileBridge(MobileInbox(repo))
+        return mobile
     market = MarketService(repo)
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
@@ -101,6 +108,10 @@ def handler(repo, backup=None):
         def do_GET(self):
             try:
                 path, space = self.route()
+                if path == '/api/mobile-inbox':
+                    connection = capture()
+                    if space != 'main': return self.send({'error':'手机收件箱只连接正式空间'},400)
+                    return self.send({'items':connection.inbox.rows(),'config':connection.inbox.config(),'connection':connection.status()})
                 if path == '/api/state':
                     return self.send(repo.read(space))
                 if path == '/api/backups':
@@ -138,6 +149,19 @@ def handler(repo, backup=None):
                 if size <= 0 or size > 25_000_000:
                     return self.send({'error': '请求大小超出限制'}, 413)
                 data = json.loads(self.rfile.read(size))
+                if path.startswith('/api/mobile-inbox/'):
+                    connection = capture()
+                    if space != 'main': return self.send({'error':'测试空间不能处理手机记录'},403)
+                    if path.endswith('/sync'): return self.send(connection.sync())
+                    if path.endswith('/approve'):
+                        result=connection.inbox.approve(data['id'],data.get('payload'))
+                        threading.Thread(target=connection.sync,daemon=True).start()
+                        return self.send(result)
+                    if path.endswith('/reject'):
+                        connection.inbox.reject(data['id'])
+                        threading.Thread(target=connection.sync,daemon=True).start()
+                        return self.send({'ok':True})
+                    return self.send({'error':'接口不存在'},404)
                 if path == '/api/cloud-backup':
                     if not backup:
                         return self.send({'error': '尚未配置云盘备份目录'}, 400)
@@ -183,7 +207,11 @@ if __name__ == '__main__':
         repo.on_saved = backup.request
         backup.request()
     try:
-        server = ThreadingHTTPServer(('127.0.0.1', args.port), handler(repo, backup))
+        from mobile_inbox import MobileInbox
+        from mobile_bridge import MobileBridge
+        mobile = MobileBridge(MobileInbox(repo))
+        server = ThreadingHTTPServer(('127.0.0.1', args.port), handler(repo, backup, mobile))
+        mobile.start()
     except OSError as e:
         print(f'无法启动：{e}', file=sys.stderr)
         if backup: backup.close()
@@ -203,4 +231,5 @@ if __name__ == '__main__':
         server.server_close()
         if alias:alias.shutdown();alias.server_close()
     finally:
+        mobile.close()
         if backup: backup.close()

@@ -9,3 +9,6 @@ __pycache__/
 .env
 .env.*
 .DS_Store
+**/credentials.json
+**/mobile-bridge.json
+**/手机网页连接码.txt

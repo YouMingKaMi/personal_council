@@ -1,0 +1,150 @@
+"""Immutable mobile capture contract v1; adapters add records to desktop schema v8.
+
+Never accept a whole workspace from a phone. No existing record is overwritten.
+"""
+import datetime as dt
+import json
+import math
+import re
+
+KINDS = {'expense': '花销', 'task': '每日任务', 'chronicle': '编年史',
+         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录'}
+FIELDS = {
+    'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity'},
+    'task': {'date', 'title'}, 'chronicle': {'date', 'text', 'endDate'},
+    'ideas': {'date', 'body'}, 'materials': {'date', 'body'},
+    'habit': {'date', 'habitId', 'versionId', 'kind', 'value', 'checked', 'items'},
+}
+
+def now():
+    return dt.datetime.now(dt.timezone.utc).isoformat()
+
+def text(value, maximum=100000):
+    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+        raise ValueError('内容为空或超过长度限制')
+    return value
+
+def day(value):
+    if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value) or not '1901-01-01' <= value <= '2099-12-31':
+        raise ValueError('日期无效')
+    dt.date.fromisoformat(value)
+    return value
+
+def identifier(value):
+    if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,100}', value):
+        raise ValueError('标识无效')
+    return value
+
+def envelope(value):
+    if not isinstance(value, dict) or set(value) != {'version', 'id', 'kind', 'createdAt', 'payload'}:
+        raise ValueError('提交格式不兼容，原稿仍保留，请更新页面')
+    if type(value['version']) is not int or value['version'] != 1:
+        raise ValueError('不支持的提交版本，原稿仍保留')
+    identifier(value['id'])
+    if len(value['id']) > 64:
+        raise ValueError('提交标识过长')
+    stamp = dt.datetime.fromisoformat(text(value['createdAt'], 50).replace('Z', '+00:00'))
+    if stamp.tzinfo is None:
+        raise ValueError('提交时间须包含时区')
+    kind, p = value['kind'], value['payload']
+    if kind not in KINDS or not isinstance(p, dict) or set(p) - FIELDS[kind]:
+        raise ValueError('功能或字段不兼容，不能忽略未知字段')
+    day(p.get('date'))
+    if kind in ('task', 'expense'):
+        text(p.get('title'), 120)
+    if kind in ('ideas', 'materials'):
+        text(p.get('body'))
+    if kind == 'chronicle':
+        text(p.get('text'))
+        if p.get('endDate') is not None and day(p['endDate']) < p['date']:
+            raise ValueError('结束日期不能早于开始日期')
+    if kind == 'expense':
+        if type(p.get('amountCents')) is not int or not 1 <= p['amountCents'] <= 99999999999:
+            raise ValueError('金额须为正整数分')
+        identifier(p.get('categoryId'))
+        if p.get('necessity') not in ('necessary', 'optional', 'undecided'):
+            raise ValueError('请选择必要性')
+    if kind == 'habit':
+        identifier(p.get('habitId')); identifier(p.get('versionId'))
+        entry_kind = p.get('kind')
+        expected = {'date', 'habitId', 'versionId', 'kind'} | {'number': {'value'}, 'check': {'checked'}, 'checklist': {'items'}}.get(entry_kind, set())
+        if entry_kind not in ('number', 'check', 'checklist') or set(p) != expected:
+            raise ValueError('习惯记录类型或字段不一致')
+        if entry_kind == 'number' and (type(p['value']) not in (int, float) or not math.isfinite(p['value']) or not 0 <= p['value'] <= 1e9):
+            raise ValueError('习惯数量无效')
+        if entry_kind == 'check' and type(p['checked']) is not bool:
+            raise ValueError('打卡状态无效')
+        if entry_kind == 'checklist':
+            if not isinstance(p['items'], dict) or len(p['items']) > 100:
+                raise ValueError('清单无效')
+            for key, val in p['items'].items():
+                identifier(key)
+                if type(val) is not bool: raise ValueError('清单状态无效')
+    return value
+
+def expense_ledger(state):
+    if 'expenses' in state: return state['expenses']
+    pairs = [('food','餐饮'),('living','居住与日用'),('transport','交通'),('health','健康'),('tools','学习与工具'),('leisure','娱乐与购物'),('social','人情'),('other','其他')]
+    return {'entries': [], 'categories': [{'id': i, 'name': n, 'archived': False} for i,n in pairs] + [
+        {'id':'food-coffee','name':'咖啡','parentId':'food','archived':False},
+        {'id':'food-meals','name':'正餐','parentId':'food','archived':False}], 'budgets': {}, 'subscriptions': []}
+
+def form_config(state):
+    cats = expense_ledger(state)['categories']
+    by_id = {c['id']: c for c in cats}
+    active = []
+    for c in cats:
+        path, node = [], c
+        while node:
+            if node['archived']: break
+            path.insert(0, node['name']); node = by_id.get(node.get('parentId'))
+        else:
+            active.append({'id': c['id'], 'name': ' / '.join(path)})
+    modules = {f.get('module') for f in state['folders']}
+    kinds = {k: v for k,v in KINDS.items() if k not in ('ideas','materials') or k in modules}
+    habits = [{'id': h['id'], 'name': h['name'], 'versions': [
+        {k: v[k] for k in ('id','fromDate','kind','name','unit','items','enabled','target') if k in v}
+        for v in h.get('versions', [])]} for h in state['habits'] if h.get('versions')]
+    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits}
+
+def apply_capture(state, submission):
+    from domain import validate
+    envelope(submission)
+    kind, p = submission['kind'], submission['payload']
+    record_id, stamp = 'mobile-' + submission['id'], now()
+    if kind in ('ideas', 'materials'):
+        folder = next((f for f in state['folders'] if f.get('module') == kind), None)
+        if not folder: raise ValueError('对应记录空间已不存在，请先恢复空间')
+        if any(n['id'] == record_id for n in state['notes']): raise ValueError('记录标识冲突')
+        title = next(x.strip()[:80] for x in p['body'].splitlines() if x.strip()) if kind == 'ideas' else p['date'] + ' · 未加工想法'
+        state['notes'].append({'id':record_id,'folder':folder['id'],'date':p['date'],'title':title,
+            'body':p['body'],'tags':[],'values':{},'status':'done','dateBasis':'记录日期','createdAt':stamp,'updatedAt':stamp})
+    elif kind == 'task':
+        state['tasks'].append({'id':record_id,'title':p['title'].strip(),'date':p['date'],'done':False})
+    elif kind == 'chronicle':
+        state['chronicle']['events'].append({'id':record_id,'date':p['date'],'endDate':p.get('endDate'),
+            'text':p['text'],'deleted':False,'createdAt':stamp,'updatedAt':stamp})
+    elif kind == 'expense':
+        if p['categoryId'] not in {c['id'] for c in form_config(state)['categories']}:
+            raise ValueError('原分类已停用或不存在，请在确认前更正分类')
+        state.setdefault('expenses', expense_ledger(state))['entries'].append({
+            **p,'id':record_id,'kind':'expense','deleted':False,'refundOf':None,
+            'subscriptionId':None,'billedOccurrence':None,'createdAt':stamp,'updatedAt':stamp})
+    else:
+        h = next((h for h in state['habits'] if h['id'] == p['habitId']), None)
+        versions = sorted((v for v in (h or {}).get('versions', []) if v['fromDate'] <= p['date']), key=lambda v:v['fromDate'])
+        if not versions or versions[-1]['id'] != p['versionId'] or versions[-1]['kind'] != p['kind']:
+            raise ValueError('这一天的习惯规则已变化，请重新选择习惯后确认')
+        cfg = versions[-1]
+        if not cfg['enabled']: raise ValueError('该日期的习惯已停用')
+        if p['date'] in h['entries'] or p['date'] in h.get('logs', {}):
+            raise ValueError('这一天已有该习惯记录，请在习惯记录库处理，手机记录不会覆盖它')
+        if p['kind']=='checklist' and set(p['items']) - {i['id'] for i in cfg['items']}:
+            raise ValueError('清单项目已变化')
+        h['entries'][p['date']] = {k:p[k] for k in ('value','checked','items') if k in p}
+        h['entries'][p['date']].update(versionId=cfg['id'], updatedAt=stamp)
+    validate(state)
+    return record_id
+
+def canonical(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False)
