@@ -8,11 +8,12 @@ import math
 import re
 
 KINDS = {'expense': '花销', 'task': '每日任务', 'chronicle': '编年史',
-         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展'}
+         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案'}
 FIELDS = {
     'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity'},
     'problem': {'date','domainId','title','body','next'},
-    'progress': {'date','domainId','problemId','body'},
+    'progress': {'date','domainId','problemId','planId','body'},
+    'plan': {'date','domainId','problemId','title','body'},
     'task': {'date', 'title'}, 'chronicle': {'date', 'text', 'endDate'},
     'ideas': {'date', 'body'}, 'materials': {'date', 'body'},
     'habit': {'date', 'habitId', 'versionId', 'kind', 'value', 'checked', 'items'},
@@ -52,15 +53,18 @@ def envelope(value):
     if kind not in KINDS or not isinstance(p, dict) or set(p) - FIELDS[kind]:
         raise ValueError('功能或字段不兼容，不能忽略未知字段')
     day(p.get('date'))
-    if kind in ('problem','progress'):
+    if kind in ('problem','progress','plan'):
         identifier(p.get('domainId'))
-        if kind=='problem':
+        if kind in ('problem','plan'):
             text(p.get('title'),300)
             for key in ('body','next'):
                 if not isinstance(p.get(key,''),str) or len(p.get(key,''))>100000:raise ValueError('问题内容无效')
+            if kind=='plan':identifier(p.get('problemId'))
         else:
             text(p.get('body'))
             if p.get('problemId') is not None:identifier(p['problemId'])
+            if p.get('planId') is not None:
+                identifier(p['planId']);identifier(p.get('problemId'))
     if kind in ('task', 'expense'):
         text(p.get('title'), 120)
     if kind in ('ideas', 'materials'):
@@ -120,18 +124,21 @@ def form_config(state):
     fields=[{'id':d['id'],'name':d['name']} for d in advancement.get('domains',[]) if not d['archived']]
     field_ids={d['id'] for d in fields}
     if not fields:
-        kinds={k:v for k,v in kinds.items() if k not in ('problem','progress')}
+        kinds={k:v for k,v in kinds.items() if k not in ('problem','progress','plan')}
     problems=[{k:p[k] for k in ('id','domainId','title')} for p in advancement.get('issues',[]) if p['domainId'] in field_ids and not p['deleted'] and p['status'] in ('open','active')]
-    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems} if 'advancement' in state else {})}
+    problem_ids={p['id'] for p in problems}
+    plans=[{k:q[k] for k in ('id','domainId','problemId','title')} for q in advancement.get('plans',[]) if q['problemId'] in problem_ids and not q['deleted'] and q['status'] in ('open','active')]
+    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems, 'plans':plans} if 'advancement' in state else {})}
 
 def apply_capture(state, submission):
     from domain import validate
     envelope(submission)
     kind, p = submission['kind'], submission['payload']
     record_id, stamp = 'mobile-' + submission['id'], now()
-    if kind in ('problem','progress'):
-        from advancement_service import add_issue,add_update
+    if kind in ('problem','progress','plan'):
+        from advancement_service import add_issue,add_update,add_plan
         if kind=='problem':add_issue(state,p,record_id,stamp)
+        elif kind=='plan':add_plan(state,p,record_id,stamp)
         else:add_update(state,p,record_id,stamp)
     elif kind in ('ideas', 'materials'):
         folder = next((f for f in state['folders'] if f.get('module') == kind), None)

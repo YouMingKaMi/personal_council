@@ -109,6 +109,49 @@ class AdvancementTest(unittest.TestCase):
   self.assertEqual(self.repo.read('main')['state']['advancement']['active']['id'],new_id)
   s=self.call('discard',at=self.clock+23,id=new_id);self.assertEqual(s['advancement']['sessions'][-1]['durationMs'],3000)
   validate(s)
+ def test_repeated_plan_sessions_and_notes_stay_with_plan(self):
+  self.problem();self.call('plan-add',id='plan-1',problemId='problem-1',title='先查文档',date='2027-01-15')
+  for offset in (0,60):
+   s=self.call('start',at=self.clock+offset,domainId='ai-field',problemId='problem-1',planId='plan-1',date='2027-01-15',owner='window-a')
+   self.call('finish',at=self.clock+offset+10,id=s['advancement']['active']['id'],date='2027-01-15',note='本次实际发现')
+  a=self.repo.read('main')['state']['advancement']
+  self.assertEqual(sum(s['durationMs'] for s in a['sessions'] if s.get('planId')=='plan-1'),20000)
+  self.assertEqual([u.get('planId') for u in a['updates']],['plan-1','plan-1'])
+  q=a['plans'][0];self.assertEqual(q['status'],'active')
+  s=self.call('plan-edit',at=self.clock+100,id=q['id'],expected=q['updatedAt'],status='done',date='2027-01-15')
+  self.assertNotEqual(s['advancement']['issues'][0]['status'],'resolved')
+  self.assertEqual(s['advancement']['updates'][-1]['planId'],'plan-1')
+  with self.assertRaises(ValueError):self.call('start',domainId='ai-field',problemId='problem-1',planId='plan-1',date='2027-01-15',owner='window-a')
+ def test_promote_is_idempotent_preserves_original_and_restore(self):
+  self.problem();self.call('update',id='proposal-record',domainId='ai-field',problemId='problem-1',date='2027-01-15',body='问 GPT\n再核实资料')
+  old=copy.deepcopy(self.repo.read('main')['state']['advancement']['updates'])
+  self.call('plan-from-update',updateId='proposal-record');s=self.call('plan-from-update',updateId='proposal-record')
+  a=s['advancement'];self.assertEqual(len(a['plans']),1);self.assertEqual(a['updates'],old);q=a['plans'][0]
+  self.assertEqual(q['body'],old[0]['body']);self.assertEqual(a['issues'][0]['focusPlanId'],q['id'])
+  self.call('plan-trash',id=q['id']);s=self.call('plan-trash',id=q['id'],deleted=False)
+  bundle=self.path/'plans.zip';create_bundle(self.repo.db,bundle);restore(bundle,self.path/'plans-restored')
+  self.assertEqual(Repository(self.path/'plans-restored').read('main')['state'],s)
+ def test_plan_identity_validation_and_old_records_untouched(self):
+  self.problem();s=self.call('plan-add',id='plan-1',problemId='problem-1',title='方案')
+  q=s['advancement']['plans'][0]
+  with self.assertRaises(ValueError):self.call('plan-edit',id=q['id'],expected='old',title='覆盖')
+  before=self.repo.read('main')
+  with self.assertRaises(ValueError):self.call('start',domainId='crypto-field',problemId='problem-1',planId=q['id'],date='2027-01-15',owner='window-a')
+  self.assertEqual(before,self.repo.read('main'))
+  s=self.call('start',domainId='ai-field',problemId='problem-1',date='2027-01-15',owner='window-a');rid=s['advancement']['active']['id']
+  s=self.call('finish',at=self.clock+3,id=rid);self.assertNotIn('planId',s['advancement']['sessions'][0])
+  s=self.call('update',domainId='ai-field',problemId='problem-1',planId=q['id'],date='2027-01-15',body='方案进展')
+  bad=copy.deepcopy(s);bad['advancement']['updates'][-1]['problemId']=None
+  with self.assertRaises(ValueError):validate(bad)
+ def test_mobile_plan_and_legacy_progress_contract(self):
+  self.problem();inbox=MobileInbox(self.repo)
+  def mobile(kind,id,p):return {'version':1,'id':id,'kind':kind,'createdAt':'2026-10-27T00:00:00+08:00','payload':{'date':'2026-10-27','domainId':'ai-field','problemId':'problem-1',**p}}
+  records=[mobile('progress','old-progress',{'body':'旧格式'}),mobile('plan','new-plan',{'title':'查询原文','body':'保留说明'})]
+  for v in records:envelope(v);inbox.receive(v);inbox.approve(v['id']);inbox.approve(v['id'])
+  v=mobile('progress','plan-progress',{'planId':'mobile-new-plan','body':'核实了第一条'})
+  envelope(v);inbox.receive(v);inbox.approve(v['id'])
+  a=self.repo.read('main')['state']['advancement'];self.assertNotIn('planId',a['updates'][0]);self.assertEqual(a['updates'][-1]['planId'],'mobile-new-plan')
+  cfg=form_config(self.repo.read('main')['state']);self.assertEqual(set(cfg['plans'][0]),{'id','title','problemId','domainId'})
  def test_integrity_trash_task_and_manual_edit(self):
   p=self.problem();s=self.call('task',id=p['id'],date='2027-01-16',title='做一次复现');self.assertEqual(s['tasks'][-1]['advancementProblemId'],p['id'])
   self.call('problem-trash',id=p['id']);s=self.call('problem-trash',id=p['id'],deleted=False);self.assertFalse(s['advancement']['issues'][0]['deleted'])

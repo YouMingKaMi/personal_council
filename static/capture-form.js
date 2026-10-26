@@ -1,5 +1,5 @@
 // Public v1 field names are stable. Both desktop approval and phone use this form adapter.
-export const names={expense:'花销',task:'任务',chronicle:'编年史',ideas:'想法',materials:'原料',habit:'习惯',problem:'新问题',progress:'推进进展'};
+export const names={expense:'花销',task:'任务',chronicle:'编年史',ideas:'想法',materials:'原料',habit:'习惯',problem:'新问题',progress:'推进进展',plan:'解决方案'};
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const option=(id,label,selected)=>`<option value="${escape(id)}" ${id===selected?'selected':''}>${escape(label)}</option>`;
@@ -7,11 +7,16 @@ export function habitConfig(config,id,date){return [...(config.habits.find(h=>h.
 export function fields(kind,p={},config){
  const date=p.date||today();
  let html=`<label>日期<input name="date" aria-label="日期" type="date" min="1901-01-01" max="2099-12-31" value="${escape(date)}" required></label>`;
- if(['problem','progress'].includes(kind)){
+ if(['problem','progress','plan'].includes(kind)){
   const did=p.domainId||config.domains?.[0]?.id;
   html+=`<label>领域<select name="domainId" aria-label="领域">${(config.domains||[]).map(d=>option(d.id,d.name,did)).join('')}</select></label>`;
   if(kind==='problem')html+=`<label>问题<input name="title" aria-label="问题" value="${escape(p.title)}" maxlength="300" required></label><label>具体情况（可选）<textarea name="body" aria-label="具体情况" maxlength="100000">${escape(p.body)}</textarea></label><label>下一步（可选）<textarea name="next" aria-label="下一步" maxlength="100000">${escape(p.next)}</textarea></label>`;
-  else html+=`<label>关联问题（可选）<select name="problemId" aria-label="关联问题"><option value="">领域进展</option>${(config.problems||[]).filter(x=>x.domainId===did).map(x=>option(x.id,x.title,p.problemId)).join('')}</select></label><label>进展<textarea name="body" aria-label="进展" maxlength="100000" required>${escape(p.body)}</textarea></label>`;
+  else {
+   const ps=(config.problems||[]).filter(x=>x.domainId===did),pid=p.problemId||(kind==='plan'?ps[0]?.id:'');
+   html+=`<label>${kind==='plan'?'所属问题':'关联问题（可选）'}<select name="problemId" aria-label="关联问题" ${kind==='plan'?'required':''}>${kind==='plan'?'':'<option value="">领域进展</option>'}${ps.map(x=>option(x.id,x.title,pid)).join('')}</select></label>`;
+   if(kind==='plan')html+=`<label>解决方案<input name="title" aria-label="解决方案" value="${escape(p.title)}" maxlength="300" required></label><label>说明（可选）<textarea name="body" aria-label="方案说明" maxlength="100000">${escape(p.body)}</textarea></label>`;
+   else html+=`<label>方案（可选）<select name="planId" aria-label="方案"><option value="">问题或领域的整体进展</option>${(config.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid).map(q=>option(q.id,q.title,p.planId)).join('')}</select></label><label>进展<textarea name="body" aria-label="进展" maxlength="100000" required>${escape(p.body)}</textarea></label>`;
+  }
  }
  if(['task','expense'].includes(kind))html+=`<label>${kind==='expense'?'消费内容':'任务内容'}<input name="title" aria-label="内容" maxlength="120" value="${escape(p.title)}" placeholder="${kind==='expense'?'例如：午餐':'准备做些什么'}" required></label>`;
  if(kind==='expense')html+=`<label>金额 · 元<input name="amount" aria-label="金额" inputmode="decimal" autocomplete="off" value="${p.amountCents!==undefined?(p.amountCents/100).toFixed(2):''}" placeholder="0.00" required></label><label>用途<select name="categoryId" aria-label="用途">${config.categories.map(c=>option(c.id,c.name,p.categoryId||config.categories[0]?.id)).join('')}</select></label><label>必要性<select name="necessity" aria-label="必要性">${[['necessary','必要'],['optional','可选'],['undecided','待判断']].map(([id,n])=>option(id,n,p.necessity||'necessary')).join('')}</select></label>`;
@@ -31,10 +36,10 @@ export function fields(kind,p={},config){
 }
 export function payload(form,kind){
  const f=new FormData(form),s=k=>String(f.get(k)||'');let p={date:s('date')};
- if(['problem','progress'].includes(kind)){
+ if(['problem','progress','plan'].includes(kind)){
   p.domainId=s('domainId');p.body=s('body');
   if(kind==='problem'){p.title=s('title').trim();p.next=s('next');}
-  else p.problemId=s('problemId')||null;
+  else {p.problemId=s('problemId')||null;if(kind==='plan')p.title=s('title').trim();else if(s('planId'))p.planId=s('planId');}
  }
  if(['task','expense'].includes(kind))p.title=s('title').trim();
  if(kind==='expense'){
@@ -56,6 +61,6 @@ export function summary(s,config){
  const p=s.payload;
  if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'可选',undecided:'待判断'}[p.necessity]}`;
  if(s.kind==='habit')return `${config.habits.find(h=>h.id===p.habitId)?.name||'习惯'} · ${p.kind==='check'?(p.checked?'已完成':'未完成'):p.kind==='number'?p.value+'（当日总数）':Object.values(p.items).filter(Boolean).length+' 项已勾选'}`;
- if(['problem','progress'].includes(s.kind))return `${config.domains?.find(d=>d.id===p.domainId)?.name||'领域已变更'} · ${p.title||p.body}${p.next?'\n下一步：'+p.next:''}`;
+ if(['problem','progress','plan'].includes(s.kind))return `${config.domains?.find(d=>d.id===p.domainId)?.name||'领域已变更'} · ${p.title||p.body}${p.next?'\n下一步：'+p.next:''}${p.planId?'\n方案：'+(config.plans?.find(q=>q.id===p.planId)?.title||'原方案已变化'):''}`;
  return p.title||p.text||p.body;
 }

@@ -68,7 +68,10 @@ def archive(state):
             lines=['# '+d['name'],d.get('goal',''),'']
             for p in (p for p in a.get('issues',[]) if p['domainId']==d['id']):
                 lines.extend(['## '+p['title'],'状态：'+p['status']+('（回收站）' if p.get('deleted') else ''),p['body'],'下一步：'+p['next'],'结论：'+p['conclusion']])
-                lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('problemId')==p['id'])
+                for q in (q for q in a.get('plans',[]) if q['problemId']==p['id']):
+                    lines.extend(['### 方案：'+q['title'],'状态：'+q['status']+('（已移除）' if q.get('deleted') else ''),q.get('body','')])
+                    lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('planId')==q['id'])
+                lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('problemId')==p['id'] and not u.get('planId'))
             z.writestr('个人推进台/'+clean(d['name'])+'--'+d['id']+'.md','\n\n'.join(lines))
         z.writestr('说明.txt', 'personal-system.json 是完整恢复文件。笔记目录为可独立阅读的 Markdown 正文。任务、习惯、字段和布局保存在 JSON 中。国库目录含当前账户明细与固定盘点副本。外部附件尚未迁移。')
     return stream.getvalue()

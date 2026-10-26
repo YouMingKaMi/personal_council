@@ -10,7 +10,7 @@ def empty(state):
     roots={f['id'] for f in state['folders'] if f['name']=='中科院'}
     folders=[f for f in state['folders'] if f.get('parent') in roots]
     return {'version':1,'domains':[{'id':f['id'],'folderId':f['id'],'name':f['name'],'goal':'','focusId':None,'archived':False} for f in folders],
-            'issues':[],'updates':[],'sessions':[],'active':None,'commands':[]}
+            'issues':[],'plans':[],'updates':[],'sessions':[],'active':None,'commands':[]}
 
 
 def stamp(ms):return dt.datetime.fromtimestamp(ms/1000,dt.timezone.utc).isoformat()
@@ -54,11 +54,42 @@ def add_issue(state,p,id,at):
     return row
 
 
+def plan(a,id):
+    q=next((q for q in a.get('plans',[]) if q['id']==id and not q['deleted']),None)
+    if not q:raise ValueError('方案已移除或不存在')
+    return q
+
+
+def add_plan(state,c,id,at):
+    a=state.setdefault('advancement',empty(state));p=issue(a,c.get('problemId'));domain(a,p['domainId'])
+    if c.get('domainId') and c['domainId']!=p['domainId']:raise ValueError('方案与领域不一致')
+    source=c.get('sourceUpdateId') or None
+    if source:
+        u=next((u for u in a['updates'] if u['id']==source and u.get('problemId')==p['id']),None)
+        if not u:raise ValueError('原进展不属于该问题')
+        existing=next((q for q in a.get('plans',[]) if q.get('sourceUpdateId')==source),None)
+        if existing:
+            if existing['deleted']:raise ValueError('这条记录已转为方案，请先恢复该方案')
+            return existing
+    if any(q['id']==id for q in a.get('plans',[])):raise ValueError('方案标识冲突')
+    q={'id':ident(id),'domainId':p['domainId'],'problemId':p['id'],'title':text(c.get('title'),300,True).strip(),
+       'body':text(c.get('body','')),'status':'open','deleted':False,'sourceUpdateId':source,
+       'date':day(c.get('date') or at[:10]),'createdAt':at,'updatedAt':at}
+    a.setdefault('plans',[]).append(q)
+    if not p.get('focusPlanId'):p['focusPlanId']=id;p['updatedAt']=at
+    return q
+
+
 def add_update(state,p,id,at):
     a=state.setdefault('advancement',empty(state));d=domain(a,p.get('domainId'));pid=p.get('problemId') or None
     if pid and issue(a,pid)['domainId']!=d['id']:raise ValueError('问题不属于该领域')
+    qid=p.get('planId') or None
+    if qid:
+        q=plan(a,qid)
+        if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('进展与方案不一致')
     if any(x['id']==id for x in a['updates']):raise ValueError('进展标识冲突')
     row={'id':id,'domainId':d['id'],'problemId':pid,'date':day(p.get('date')),'body':text(p.get('body'),100000,True),'createdAt':at}
+    if qid:row['planId']=qid
     a['updates'].append(row);return row
 
 
@@ -92,6 +123,29 @@ def mutate(state,c,now):
             if folder and any(d['folderId']==folder for d in a['domains']):raise ValueError('这个资料空间已关联领域')
             a['domains'].append({'id':folder or str(uuid.uuid4()),'folderId':folder,'name':text(c.get('name') or (f or {}).get('name'),80,True).strip(),'goal':'','focusId':None,'archived':False})
     elif op=='problem-add':add_issue(state,c,c.get('id') or str(uuid.uuid4()),at)
+    elif op=='plan-add':add_plan(state,c,c.get('id') or str(uuid.uuid4()),at)
+    elif op=='plan-from-update':
+        u=next((u for u in a['updates'] if u['id']==c.get('updateId')),None)
+        if not u or not u.get('problemId'):raise ValueError('请选择某个问题下的进展记录')
+        add_plan(state,{'problemId':u['problemId'],'domainId':u['domainId'],'sourceUpdateId':u['id'],
+                        'title':c.get('title') or u['body'].strip().splitlines()[0][:300],
+                        'body':u['body'],'date':u['date']},c.get('id') or str(uuid.uuid4()),at)
+    elif op=='plan-edit':
+        q=plan(a,c['id'])
+        if c.get('expected')!=q['updatedAt']:raise ValueError('方案已在另一处更新，请重新打开后修改；草稿仍保留')
+        changes={k:c[k] for k in ('title','body','status') if k in c}
+        if changes.get('status')=='done' and q['status']!='done':
+            add_update(state,{'domainId':q['domainId'],'problemId':q['problemId'],'planId':q['id'],'date':c['date'],'body':'方案已完成'},str(uuid.uuid4()),at)
+        q.update(changes,updatedAt=at)
+    elif op=='plan-focus':
+        q=plan(a,c['id']);p=issue(a,q['problemId']);domain(a,p['domainId'])
+        if q['status'] in ('done','parked'):raise ValueError('请先将方案恢复为待推进或推进中')
+        p['focusPlanId']=q['id'];p['updatedAt']=at;domain(a,p['domainId'])['focusId']=p['id']
+    elif op=='plan-trash':
+        q=next((q for q in a.get('plans',[]) if q['id']==c['id']),None)
+        if not q:raise ValueError('方案不存在')
+        if a['active'] and a['active'].get('planId')==q['id']:raise ValueError('请先结束此方案的计时')
+        issue(a,q['problemId']);q['deleted']=bool(c.get('deleted',True));q['updatedAt']=at
     elif op=='problem-edit':
         p=issue(a,c['id'])
         if c.get('expected')!=p['updatedAt']:raise ValueError('这个问题已在另一处更新，请重新打开后修改；当前草稿仍保留')
@@ -121,14 +175,21 @@ def mutate(state,c,now):
         r=a['active']
         if op=='start':
             if r:raise ValueError('已有计时，请先结束后切换')
-            d=domain(a,c['domainId']);pid=c.get('problemId') or None
+            d=domain(a,c['domainId']);pid=c.get('problemId') or None;qid=c.get('planId') or None
+            if qid:
+                q=plan(a,qid)
+                if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('计时与方案不一致')
+                if q['status'] in ('done','parked'):raise ValueError('此方案已完成或暂放，请先重新打开')
+                if q['status']=='open':q.update(status='active',updatedAt=at)
             if pid:
                 p=issue(a,pid)
                 if p['domainId']!=d['id']:raise ValueError('问题不属于此领域')
                 d['focusId']=pid
+                if qid:p['focusPlanId']=qid
                 if p['status']=='open':p.update(status='active',updatedAt=at)
             a['active']={'id':str(uuid.uuid4()),'domainId':d['id'],'problemId':pid,'title':text(c.get('title',''),300),
                          'date':day(c['date']),'owner':ident(c['owner']),'status':'running','startedAt':now,'lastSeen':now,'segmentStart':now,'segments':[],'interrupted':False}
+            if qid:a['active']['planId']=qid
         elif r and c.get('id')!=r['id']:raise ValueError('计时已变化，请刷新后重试')
         elif not r:
             if op!='heartbeat':raise ValueError('当前没有计时')
@@ -142,8 +203,10 @@ def mutate(state,c,now):
         elif op=='finish':
             if r['status']=='running':close_segment(r,now)
             note=text(c.get('note',''));a['sessions'].append({k:r[k] for k in ('id','domainId','problemId','title','date','segments')})
-            s=a['sessions'][-1];s.update(manual=False,deleted=False,durationMs=sum(x['end']-x['start'] for x in r['segments']),note=note,endedAt=now)
-            if note.strip():add_update(state,{'domainId':r['domainId'],'problemId':r['problemId'],'date':c.get('date',r['date']),'body':note},str(uuid.uuid4()),at)
+            s=a['sessions'][-1]
+            if r.get('planId'):s['planId']=r['planId']
+            s.update(manual=False,deleted=False,durationMs=sum(x['end']-x['start'] for x in r['segments']),note=note,endedAt=now)
+            if note.strip():add_update(state,{'domainId':r['domainId'],'problemId':r['problemId'],'date':c.get('date',r['date']),'body':note,'planId':r.get('planId')},str(uuid.uuid4()),at)
             if 'next' in c and r['problemId']:
                 p=issue(a,r['problemId']);p['next']=text(c['next']);p['updatedAt']=at
             a['active']=None
@@ -160,10 +223,15 @@ def mutate(state,c,now):
     elif op=='manual':
         d=domain(a,c['domainId']);pid=c.get('problemId') or None
         if pid and issue(a,pid)['domainId']!=d['id']:raise ValueError('问题不属于此领域')
+        qid=c.get('planId') or None
+        if qid:
+            q=plan(a,qid)
+            if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('补记与方案不一致')
         duration=number(c.get('durationMs'))
         if duration<=0 or duration>86400000:raise ValueError('补记时长须在 0—24 小时内')
         a['sessions'].append({'id':str(uuid.uuid4()),'domainId':d['id'],'problemId':pid,'title':text(c.get('title',''),300),'date':day(c['date']),
                               'segments':[],'durationMs':duration,'manual':True,'deleted':False,'note':text(c.get('note','')),'endedAt':now})
+        if qid:a['sessions'][-1]['planId']=qid
     else:raise ValueError('未知推进操作')
 
 

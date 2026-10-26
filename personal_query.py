@@ -13,6 +13,7 @@ from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_ope
 TZ = timezone(timedelta(hours=8))
 SECTIONS = {
     'advancement_domains': ('advancement','domains'),
+    'advancement_plans': ('advancement','plans'),
     'advancement_problems': ('advancement','issues'),
     'advancement_updates': ('advancement','updates'),
     'advancement_sessions': ('advancement','sessions'),

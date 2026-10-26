@@ -64,3 +64,7 @@ Mac 数据目录的 `mobile-bridge.json`（0600）含 `url`、`desktopToken`。�
 - `progress`：date、domainId、body，problemId 可为 null；进入领域进展或对应问题。
 
 配置在已启用推进台时增加 domains（仅 id/name）与 problems（仅未解决、未移除问题的 id/domainId/title）。不会发布问题正文、进展正文、计时明细或领域目标。手机和电脑检查表单共用同一适配器，领域变化后清空问题选择；失效领域／问题明确报错，原提交保留，允许检查修改后确认。新中转站同时接受旧四字段配置和扩展配置，旧离线消费／任务请求仍可确认。
+
+## 2026-10-27 方案录入扩展
+新增 `kind=plan`：date/domainId/problemId/title，body 可省略；创建问题下的持久方案。原 `progress` 请求可选添加 planId，指定时必须与 domainId、problemId 同属；省略时保持原领域／问题进展的含义。新旧字段均不改名、不改类型，不根据正文自动猜归属。
+配置可增加 plans，每项严格仅 id/domainId/problemId/title，供手机和电脑审核表单选择；正文、计时和历史不发布。中转站兼容原四字段配置、domains/problems 扩展及 plans 扩展。方案／问题选择变化时清除下级旧选择。失效引用明确报错，原提交仍在收件箱，用户检查并修正后确认。旧手机离线的 problem/progress/消费等请求照常接受。方案完成或移除后不出现在新选择中，既有正式记录引用继续保留。
