@@ -95,3 +95,7 @@ dashboard-layout.js 只操作当前 dashboard 的展示位置：使用现有 gri
 
 ## 推进时长统计
 `advancement-statistics.js` 只读聚合 sessions 和 active；`advancement-statistics-view.js` 展示月历、每日柱图、单日明细、领域月度分配、6／12 个月矩阵。每条 session 仅计一次，不叠加问题／方案的累计；手动补记与修正按声明日期，自动片段按 Asia/Shanghai 日界分配（与 model.today 一致，不依赖浏览器当前时区），排除 deleted，保留 archived 领域。当前月只统计已过天数，未来日期不伪造零；已存在的明确零记录与无记录区分。进行中片段沿用 lastSeen + 60 秒显示上限与已有休眠恢复规则。无 schema／手机契约／数据库字段变更。新统计纯函数测试覆盖跨月、跨年、暂停片段、上限、手动记录、取消恢复、归档、汇总一致性、闰年及不同运行时区；独立模拟库浏览器验证领域筛选、日期明细、月份回顾、空月份、计时取消与宽窄／深浅显示。
+
+## 工作台专注领域
+可选 `advancement.workbench={focusDomainIds,temporaryDate,temporaryDomainIds}`，旧状态缺省无常驻选择，schemaVersion 和 advancement.version 不变。`workbench-focus` 命令只替换常驻 IDs，必须携带旧列表 expected，防旧设置窗口覆盖；`workbench-select` 对同一天临时 IDs 做事务内去重合并，换日替换临时日期与列表。均不改 domains.archived／问题／方案／sessions。手机仍能选择全部启用领域，不受工作台偏好过滤，v1 录入契约无变更。
+`workbenchDomains` 合并常驻、当日选择、当日有效计时与 active，跨日按实际片段；取消／移除排除，历史总和不按偏好过滤。左侧可从“其他领域”临时切换，不自动提升为常驻。刷新保持设置，跨上海午夜自动重绘，时间条随计时更新。完整数据库／JSON 备份保留设置；旧程序可忽略这项展示偏好，回退程序不删除数据。检查覆盖旧状态、增减、临时过期、跨日、补记、取消、归档、并发设置冲突、幂等、手机配置不受影响及备份恢复。

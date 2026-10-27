@@ -46,6 +46,14 @@ def validate_advancement(state):
     plans={q['id']:q for q in a.get('plans',[])}
     if any(not isinstance(x,str) for x in a['commands']):raise ValueError('推进请求标识无效')
     domains={d['id']:d for d in a['domains']};issues={p['id']:p for p in a['issues']}
+    if 'workbench' in a:
+        w=a['workbench']
+        if not isinstance(w,dict):raise ValueError('工作台设置无效')
+        for key in ('focusDomainIds','temporaryDomainIds'):
+            ids=w.get(key)
+            if not isinstance(ids,list) or any(not isinstance(id,str) or id not in domains for id in ids) or len(set(ids))!=len(ids):raise ValueError('工作台领域无效')
+        if w.get('temporaryDate') is not None:day(w['temporaryDate'])
+        elif w['temporaryDomainIds']:raise ValueError('临时领域缺少日期')
     folders={f['id'] for f in state['folders']};notes={n['id'] for n in state['notes']}
     for d in domains.values():
         text(d.get('name'),80,True);text(d.get('goal'),2000)

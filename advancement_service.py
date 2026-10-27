@@ -96,6 +96,19 @@ def add_update(state,p,id,at):
 def mutate(state,c,now):
     a=state.setdefault('advancement',empty(state));op=c.get('op');at=stamp(now)
     if op=='init' or op=='reconcile':return
+    if op in ('workbench-focus','workbench-select'):
+        w=a.setdefault('workbench',{'focusDomainIds':[],'temporaryDate':None,'temporaryDomainIds':[]})
+        if op=='workbench-focus':
+            ids=c.get('domainIds')
+            if not isinstance(ids,list) or any(not isinstance(id,str) for id in ids) or len(set(ids))!=len(ids):raise ValueError('请选择有效领域')
+            if c.get('expected')!=w['focusDomainIds']:raise ValueError('专注领域已在另一窗口修改，请重新打开设置')
+            for id in ids:domain(a,id)
+            w['focusDomainIds']=ids
+        else:
+            id=domain(a,c.get('domainId'))['id'];date=day(c.get('date'))
+            if w['temporaryDate']!=date:w.update(temporaryDate=date,temporaryDomainIds=[])
+            if id not in w['temporaryDomainIds']:w['temporaryDomainIds'].append(id)
+        return
     if op=='discard':
         r=a.get('active')
         if not r or r['id']!=c.get('id'):raise ValueError('当前计时已变化，请刷新后取消')

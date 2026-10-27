@@ -152,6 +152,38 @@ class AdvancementTest(unittest.TestCase):
   envelope(v);inbox.receive(v);inbox.approve(v['id'])
   a=self.repo.read('main')['state']['advancement'];self.assertNotIn('planId',a['updates'][0]);self.assertEqual(a['updates'][-1]['planId'],'mobile-new-plan')
   cfg=form_config(self.repo.read('main')['state']);self.assertEqual(set(cfg['plans'][0]),{'id','title','problemId','domainId'})
+ def test_workbench_focus_selection_history_and_stale_form(self):
+  self.problem();s=self.call('manual',domainId='ai-field',date='2027-01-15',durationMs=600000)
+  sessions=copy.deepcopy(s['advancement']['sessions']);problems=copy.deepcopy(s['advancement']['issues'])
+  s=self.call('workbench-focus',domainIds=['ai-field'],expected=[])
+  self.assertEqual(s['advancement']['workbench']['focusDomainIds'],['ai-field'])
+  cfg=form_config(s);self.assertEqual(len(cfg['domains']),2)
+  s=self.call('workbench-select',domainId='crypto-field',date='2027-01-15')
+  self.assertEqual(s['advancement']['workbench']['temporaryDomainIds'],['crypto-field'])
+  self.assertEqual(s['advancement']['workbench']['focusDomainIds'],['ai-field'])
+  s=self.call('workbench-focus',domainIds=[],expected=['ai-field'])
+  self.assertEqual(s['advancement']['domains'][0]['archived'],False)
+  self.assertEqual(s['advancement']['sessions'],sessions);self.assertEqual(s['advancement']['issues'],problems)
+  self.call('workbench-focus',domainIds=['crypto-field'],expected=[])
+  before=self.repo.read('main')
+  with self.assertRaises(ValueError):self.call('workbench-focus',domainIds=['ai-field'],expected=[])
+  self.assertEqual(before,self.repo.read('main'))
+  for ids in (['missing'],['ai-field','ai-field'],'ai-field',[None]):
+   with self.assertRaises(ValueError):self.call('workbench-focus',domainIds=ids,expected=['crypto-field'])
+  s=self.call('workbench-select',domainId='ai-field',date='2027-01-16')
+  self.assertEqual(s['advancement']['workbench']['temporaryDate'],'2027-01-16')
+  self.assertEqual(s['advancement']['workbench']['temporaryDomainIds'],['ai-field'])
+  bundle=self.path/'focus-backup.zip';create_bundle(self.repo.db,bundle);restore(bundle,self.path/'focus-restored')
+  self.assertEqual(Repository(self.path/'focus-restored').read('main')['state']['advancement']['workbench'],s['advancement']['workbench'])
+  for value in ({}, {'focusDomainIds':['missing'],'temporaryDate':None,'temporaryDomainIds':[]}, {'focusDomainIds':[],'temporaryDate':None,'temporaryDomainIds':['ai-field']}):
+   bad=copy.deepcopy(s);bad['advancement']['workbench']=value
+   with self.assertRaises(ValueError):validate(bad)
+ def test_workbench_selections_merge_and_focus_retry_is_idempotent(self):
+  c={'op':'workbench-focus','domainIds':['ai-field'],'expected':[],'commandId':'focus-retry'}
+  command(self.repo,'main',c,self.clock);command(self.repo,'main',c,self.clock)
+  def select(d):return command(self.repo,'main',{'op':'workbench-select','domainId':d,'date':'2027-01-15','commandId':'select-'+d},self.clock)
+  with ThreadPoolExecutor(max_workers=2) as pool:list(pool.map(select,['ai-field','crypto-field']))
+  self.assertEqual(set(self.repo.read('main')['state']['advancement']['workbench']['temporaryDomainIds']),{'ai-field','crypto-field'})
  def test_integrity_trash_task_and_manual_edit(self):
   p=self.problem();s=self.call('task',id=p['id'],date='2027-01-16',title='做一次复现');self.assertEqual(s['tasks'][-1]['advancementProblemId'],p['id'])
   self.call('problem-trash',id=p['id']);s=self.call('problem-trash',id=p['id'],deleted=False);self.assertFalse(s['advancement']['issues'][0]['deleted'])

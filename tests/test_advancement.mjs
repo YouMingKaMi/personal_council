@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {total,activeMs,clock,weekStart,interval,timerText,currentPlan,target} from '../static/advancement-model.js';
+import {total,activeMs,clock,weekStart,interval,timerText,currentPlan,target,workbenchDomains,focusDomains} from '../static/advancement-model.js';
 const [a,b]=interval('2026-10-26');
 const s={advancement:{sessions:[{domainId:'ai',segments:[{start:b-1800000,end:b+1800000}],manual:false,deleted:false},{domainId:'ai',date:'2026-10-26',durationMs:600000,segments:[],manual:true,deleted:false}],active:null}};
 assert.equal(total(s,{start:'2026-10-26',end:'2026-10-26'}),2400000);
@@ -24,3 +24,26 @@ assert.equal(currentPlan(planned,'p').id,'q');assert.equal(total(planned,{planId
 assert.deepEqual(target(planned,'plan:q'),{problemId:'p',planId:'q'});assert.throws(()=>target(planned,'plan:missing'));
 assert.deepEqual(timerText({title:'本次事项'},{title:'问题'},{title:'问 GPT'}),{subject:'问题',action:'问 GPT'});
 console.log('Persistent plan selection, totals and session captions passed');
+
+const focusState={advancement:{domains:[{id:'ai',name:'AI',archived:false},{id:'fit',name:'健身',archived:false},{id:'media',name:'自媒体',archived:false},{id:'old',name:'已收起',archived:true}],sessions:[],active:null}};
+assert.deepEqual(workbenchDomains(focusState,'2026-10-27'),[]);
+focusState.advancement.workbench={focusDomainIds:['ai','fit'],temporaryDate:'2026-10-27',temporaryDomainIds:['media']};
+assert.deepEqual(focusDomains(focusState).map(d=>d.id),['ai','fit']);
+assert.deepEqual(workbenchDomains(focusState,'2026-10-27').map(d=>[d.id,d.temporary]),[['ai',false],['fit',false],['media',true]]);
+assert.deepEqual(workbenchDomains(focusState,'2026-10-28').map(d=>d.id),['ai','fit']);
+focusState.advancement.workbench.focusDomainIds=['ai'];
+assert.deepEqual(workbenchDomains(focusState,'2026-10-28').map(d=>d.id),['ai']);
+const run={id:'time',domainId:'media',date:'2026-10-26',manual:false,deleted:false,durationMs:120000,segments:[{start:interval('2026-10-27')[0]-60000,end:interval('2026-10-27')[0]+60000}]};
+focusState.advancement.sessions=[run];
+assert.deepEqual(workbenchDomains(focusState,'2026-10-26').map(d=>d.id),['ai','media']);
+assert.equal(total(focusState,{start:'2026-10-27',end:'2026-10-27'}),60000);
+run.deleted=true;
+assert.deepEqual(workbenchDomains(focusState,'2026-10-26').map(d=>d.id),['ai']);
+focusState.advancement.sessions=[{id:'manual',domainId:'old',date:'2026-10-28',manual:true,deleted:false,durationMs:300000,segments:[]}];
+assert.deepEqual(workbenchDomains(focusState,'2026-10-28').map(d=>d.id),['ai','old']);
+focusState.advancement.active={domainId:'media',date:'2026-10-28',status:'paused',segments:[]};
+assert.ok(workbenchDomains(focusState,'2026-10-28').some(d=>d.id==='media'));
+assert.equal(total(focusState,{start:'2026-10-28',end:'2026-10-28'}),300000);
+assert.deepEqual(workbenchDomains(focusState,'2026-10-29').map(d=>d.id),['ai']);
+assert.equal(focusState.advancement.domains.length,4);
+console.log('Workbench focus: optional legacy settings, day-only extras, active/cross-midnight/manual records, cancelled exclusion, archive history and unchanged totals passed');

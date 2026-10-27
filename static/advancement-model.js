@@ -5,6 +5,18 @@ export const plans=(s,id)=>(data(s).plans||[]).filter(q=>q.problemId===id&&!q.de
 export function currentPlan(s,id){const p=data(s).issues.find(p=>p.id===id),qs=plans(s,id).filter(q=>['open','active'].includes(q.status));return qs.find(q=>q.id===p?.focusPlanId)||qs.find(q=>q.status==='active')||qs[0];}
 export function target(s,value){if(value?.startsWith('plan:')){const q=(data(s).plans||[]).find(q=>q.id===value.slice(5));if(!q)throw Error('方案已变化，请刷新后重试');return {problemId:q.problemId,planId:q.id};}return {problemId:value||null,planId:null};}
 export const domains=s=>data(s).domains.filter(d=>!d.archived);
+export const focusDomains=s=>domains(s).filter(d=>(data(s).workbench?.focusDomainIds||[]).includes(d.id));
+export function workbenchDomains(s,day,now=Date.now()){
+ const a=data(s),focus=new Set(focusDomains(s).map(d=>d.id)),w=a.workbench;
+ const ids=new Set([...focus,...(w?.temporaryDate===day?w.temporaryDomainIds:[])]);
+ const [lo,hi]=interval(day),overlap=rows=>rows.some(r=>r.end>lo&&r.start<hi);
+ for(const r of a.sessions){
+  if(!r.deleted&&(r.manual?r.date===day:overlap(r.segments)||r.durationMs===0&&r.date===day))ids.add(r.domainId);
+ }
+ const r=a.active;
+ if(r&&(r.date===day||overlap(r.segments)||r.status==='running'&&Math.min(now,r.lastSeen+60000)>lo&&r.segmentStart<hi))ids.add(r.domainId);
+ return a.domains.filter(d=>ids.has(d.id)&&(!d.archived||total(s,{start:day,end:day,domainId:d.id,now})>0)).map(d=>({...d,temporary:!focus.has(d.id)}));
+}
 export const issues=(s,d)=>data(s).issues.filter(p=>p.domainId===d&&!p.deleted);
 export const format=ms=>{const m=Math.floor(Math.max(0,ms)/60000),h=Math.floor(m/60);return h?`${h}h${String(m%60).padStart(2,'0')}m`:`${m}m`;};
 export const clock=ms=>{const t=Math.floor(Math.max(0,ms)/1000);return [Math.floor(t/3600),Math.floor(t/60)%60,t%60].map(x=>String(x).padStart(2,'0')).join(':');};
