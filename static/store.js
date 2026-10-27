@@ -35,3 +35,9 @@ export async function advance(command){
  try{const d=await api('/api/advancement',command);state=d.state;revision=d.revision;return d;}
  finally{busy=false;}
 }
+
+export async function metrics(command){
+ if(busy)throw new Error('正在保存，请稍候');busy=true;
+ try{const d=await api('/api/daily-metrics',command);state=d.state;revision=d.revision;return d;}
+ finally{busy=false;}
+}

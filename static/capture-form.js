@@ -1,9 +1,10 @@
 import {allocationFields,allocationFromForm,updateAllocationForm} from './expense-allocation-form.js';
+import {defaultMetrics,metricInputs,metricValues,metricFormat} from './daily-metrics-model.js';
 import {planLabel} from './plan-path.js';
 import {taskPlanFields,taskPlan,updateTaskPlanFields} from './task-model.js';
 export {updateAllocationForm,updateTaskPlanFields};
 // Public v1 field names are stable. Both desktop approval and phone use this form adapter.
-export const names={expense:'花销',task:'任务',taskPlan:'任务',chronicle:'编年史',ideas:'想法',materials:'原料',habit:'习惯',problem:'新问题',progress:'推进进展',plan:'解决方案',focus:'推进计时'};
+export const names={expense:'花销',task:'任务',taskPlan:'任务',chronicle:'编年史',ideas:'想法',materials:'原料',habit:'习惯',problem:'新问题',progress:'推进进展',plan:'解决方案',focus:'推进计时',metrics:'每日指标'};
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const option=(id,label,selected)=>`<option value="${escape(id)}" ${id===selected?'selected':''}>${escape(label)}</option>`;
@@ -12,6 +13,7 @@ export const durationLabel=ms=>{const s=Math.floor(ms/1000),m=Math.floor(s/60),h
 export function fields(kind,p={},config){
  const date=p.date||today();
  let html=`<label ${kind==='taskPlan'?'hidden':''}>日期<input name="date" aria-label="日期" type="date" min="1901-01-01" max="2099-12-31" value="${escape(date)}" ${kind==='focus'?'readonly':''} required></label>`;
+ if(kind==='metrics'){const defs=(config.metricDefinitions||defaultMetrics).filter(d=>!d.archived||Object.hasOwn(p.values||{},d.id)||String(p['metric:'+d.id]??'').trim()!=='');html+=`<input type="hidden" name="metricDefinitions" value="${escape(JSON.stringify(defs))}">`+metricInputs(defs,p.values||{},p)+`<label>备注（可选）<textarea name="note" aria-label="指标备注" rows="2" maxlength="10000">${escape(p.note)}</textarea></label><details ${p.replaceExisting?'open':''}><summary>已有记录的更新</summary><label class="check"><input type="checkbox" name="replaceExisting" ${p.replaceExisting?'checked':''}>更新当天同项已有值</label></details>`;}
  if(kind==='focus'){
   const options=(rows,id,missing)=>`${id&&!rows.some(r=>r.id===id)?option(id,missing,id):''}${rows.map(r=>option(r.id,r.problemId?planLabel(config.plans||[],r.id):r.title||r.name,id)).join('')}`;
   const ds=config.domains||[],ps=(config.problems||[]).filter(x=>x.domainId===p.domainId),qs=(config.plans||[]).filter(x=>x.domainId===p.domainId&&x.problemId===p.problemId);
@@ -48,6 +50,7 @@ export function fields(kind,p={},config){
 }
 export function payload(form,kind){
  const f=new FormData(form),s=k=>String(f.get(k)||'');let p={date:s('date')};
+ if(kind==='metrics'){const defs=JSON.parse(s('metricDefinitions'));p.values=metricValues(form,defs);if(s('note').trim())p.note=s('note');if(f.has('replaceExisting'))p.replaceExisting=true;if(!Object.keys(p.values).length&&!p.note)throw Error('至少填写一项指标或备注');}
  if(kind==='focus'){
   Object.assign(p,{domainId:s('domainId'),problemId:s('problemId')||null,planId:s('planId')||null,title:s('title'),note:s('note'),segments:JSON.parse(s('focusSegments')),durationMs:Number(s('focusDuration'))});
   if(s('adjustedMinutes').trim()){const n=Number(s('adjustedMinutes'));if(!Number.isFinite(n)||n<0||n>1440)throw Error('修正用时须在 0—1440 分钟内');p.adjustedDurationMs=Math.round(n*60000);}
@@ -76,6 +79,7 @@ export function payload(form,kind){
 }
 export function summary(s,config){
  const p=s.payload;
+ if(s.kind==='metrics'){const defs=config.metricDefinitions||defaultMetrics;return Object.entries(p.values).map(([id,n])=>{const d=defs.find(d=>d.id===id);return d?d.name+'：'+metricFormat(d,n):id+'：'+n;}).join(' · ')+(p.note?'\n'+p.note:'')+(p.replaceExisting?'\n已确认更新当天同项已有值':'');}
  if(s.kind==='focus')return `${config.domains?.find(d=>d.id===p.domainId)?.name||'原领域已变化'} · ${durationLabel(p.adjustedDurationMs??p.durationMs)}${p.title?' · '+p.title:''}${p.planId?'\n方案：'+(planLabel(config.plans||[],p.planId)||'原方案已变化'):''}${p.note?'\n'+p.note:''}`;
  if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'非必要',undecided:'待判断'}[p.necessity]}${p.allocation?' · 长期使用 '+p.allocation.startDate+' — '+p.allocation.expectedEndDate:''}`;
  if(s.kind==='taskPlan')return `${p.title} · ${p.schedule==='day'?'安排 '+p.scheduledDate:p.schedule==='deadline'?'截至 '+p.deadline+(p.deadlineTime?' '+p.deadlineTime:''):'近期完成'}`;

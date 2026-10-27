@@ -3,3 +3,5 @@
 @media(max-width:360px){main{padding-left:16px;padding-right:16px}.tabs{gap:13px}.phone-focus-clock{font-size:38px}}
 
 [hidden]{display:none!important}.expense-usage-fields{border-top:1px solid #303030;padding-top:14px}.expense-usage-fields [data-usage-dates],.task-plan-fields{display:grid;gap:14px}.expense-usage-fields .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.task-plan-fields [data-task-deadline]{display:grid;gap:14px}
+
+.metric-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.metric-inputs label{min-width:0}.metric-inputs input{width:100%;box-sizing:border-box}.metric-inputs small{font-size:10px;color:var(--muted,#999)}

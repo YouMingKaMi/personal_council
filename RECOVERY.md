@@ -80,3 +80,5 @@ python3 server.py --data '/完整路径/new-data'
 独立近期待办使用新布局 ID task-backlog，并未拆分任务数据库。当前版完整备份包含该布局和全部原任务；使用含任务分区支持的匹配程序恢复。回退旧程序前请保留现有库，另在独立目录恢复 before-task-boards-* 中的发布前备份，勿让旧版保存含未知卡片的布局。
 
 解决路径层级包含在完整数据库与 JSON 备份中，可读 Markdown 导出保留完整路径。恢复请使用含 parentId/nodeType/abandoned 支持的匹配程序及 static/plan-path.js；旧版不能保存层级数据。发布前的程序与数据库在 before-plan-paths-* 中，回退时恢复到独立目录，切勿覆盖当前库。
+
+每日指标的定义、按日记录、备注、软删除状态、指标首页卡和档案库入口都在完整备份中。请用含 daily_metrics.py 与 static/daily-metrics-* 的匹配版本恢复，新 layout ID=metrics 保持 schema v8 的可选扩展；旧程序不能保存该布局。手机已提交但未审批的数据另在中转站原库中，未发送草稿仍留手机本地。备份恢复到独立目录验证，勿覆盖当前库。

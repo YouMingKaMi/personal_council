@@ -8,8 +8,9 @@ import math
 import re
 
 KINDS = {'expense': '花销', 'task': '任务', 'taskPlan':'任务', 'chronicle': '编年史',
-         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案', 'focus':'推进计时'}
+         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案', 'focus':'推进计时','metrics':'每日指标'}
 FIELDS = {
+    'metrics': {'date','values','note','replaceExisting'},
     'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity', 'allocation'},
     'problem': {'date','domainId','title','body','next'},
     'progress': {'date','domainId','problemId','planId','body'},
@@ -75,6 +76,15 @@ def envelope(value):
     if kind not in KINDS or not isinstance(p, dict) or set(p) - FIELDS[kind]:
         raise ValueError('功能或字段不兼容，不能忽略未知字段')
     day(p.get('date'))
+    if kind=='metrics':
+        v=p.get('values')
+        if not isinstance(v,dict) or len(v)>100:raise ValueError('指标格式无效')
+        for id,n in v.items():
+            identifier(id)
+            if type(n) not in (int,float) or not math.isfinite(n) or abs(n)>1e9:raise ValueError('指标数值无效')
+        if not isinstance(p.get('note',''),str) or len(p.get('note',''))>10000:raise ValueError('指标备注过长')
+        if not v and not p.get('note','').strip():raise ValueError('至少填写一项指标或备注')
+        if 'replaceExisting' in p and type(p['replaceExisting']) is not bool:raise ValueError('指标更新确认无效')
     if kind=='focus':focus_payload(p,stamp)
     if kind in ('problem','progress','plan'):
         identifier(p.get('domainId'))
@@ -153,6 +163,7 @@ def form_config(state):
     habits = [{'id': h['id'], 'name': h['name'], 'versions': [
         {k: v[k] for k in ('id','fromDate','kind','name','unit','items','enabled','target') if k in v}
         for v in h.get('versions', [])]} for h in state['habits'] if h.get('versions')]
+    if 'dailyMetrics' not in state:kinds.pop('metrics',None)
     advancement=state.get('advancement',{})
     fields=[{'id':d['id'],'name':d['name']} for d in advancement.get('domains',[]) if not d['archived']]
     field_ids={d['id'] for d in fields}
@@ -167,14 +178,17 @@ def form_config(state):
             **({'nodeType':'question'} if q.get('nodeType')=='question' else {})}
            for q in advancement.get('plans',[]) if q['problemId'] in problem_ids and plan_available(plan_by_id,q['id'])]
     focused=[id for id in advancement.get('workbench',{}).get('focusDomainIds',[]) if id in field_ids]
-    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems, 'plans':plans,'focusDomainIds':focused} if 'advancement' in state else {})}
+    return {**({'metricDefinitions':state['dailyMetrics']['definitions']} if 'dailyMetrics' in state else {}),'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems, 'plans':plans,'focusDomainIds':focused} if 'advancement' in state else {})}
 
 def apply_capture(state, submission):
     from domain import validate
     envelope(submission)
     kind, p = submission['kind'], submission['payload']
     record_id, stamp = 'mobile-' + submission['id'], now()
-    if kind=='focus':
+    if kind=='metrics':
+        from daily_metrics import save_day
+        record_id=save_day(state,p,stamp,mobile=True)
+    elif kind=='focus':
         from mobile_timer import import_timer
         import_timer(state,p,record_id,stamp)
     elif kind in ('problem','progress','plan'):

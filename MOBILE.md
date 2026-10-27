@@ -89,3 +89,6 @@ expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个�
 
 ## 2026-10-27 路径层级
 既有 v1 plan 仅新增可选 parentId、nodeType=solution/question，旧离线 plan/progress/focus 不改语义。电脑配置只添加非空 parentId 与 question 类型，不发送历史正文或时长。手机方案可选择上级及类型，进展/计时选择器显示完整路径；切换问题清空旧上级。已放弃、已完成、暂放或已移除的分支及其子级不进入新录入配置；旧待审批记录仍核对同一主问题后保留入库。中转站需同步 advancement_domain.py、capture_contract.py、capture_relay.py、static/plan-path.js 与更新后的手机表单、计时、缓存模块。
+
+## 每日指标 v1
+新增 kind=metrics：payload={date,values:{metricId:number},note?,replaceExisting?}，不改任何旧 kind。sleepMinutes 为整数分钟，评分为 0—10；手机表单兼容小数小时/时:分并转换为分钟。配置可增加 metricDefinitions（仅 id/name/kind/unit/min/max/archived 元数据，不包含日期、数值、备注或历史）。隐藏的已排队指标仍可审批；旧未发送草稿如含隐藏指标也保留输入。手机仅发非空项，审批原子合并同日期不同指标，已存在不同同项值/备注默认阻止，用户明确勾选 replaceExisting 才允许更新；已有同日记录 ID 不变，重复审批只入库一次。旧日期/任务/花销/计时等离线请求继续兼容，Service Worker 更新不清空草稿队列。中转站需同步 daily_metrics.py、capture_contract.py/capture_relay.py、static/daily-metrics-model.js、共享表单和手机 app/style/sw。

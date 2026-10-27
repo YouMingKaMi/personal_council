@@ -114,7 +114,7 @@ def handler(relay):
                 if path=='/api/submit' and post: return self.send(relay.receive(data))
                 with relay.connect() as c:
                     if path=='/bridge/config' and post:
-                        if not isinstance(data,dict) or data.get('version')!=1 or not {'version','kinds','categories','habits'}<=set(data)<= {'version','kinds','categories','habits','domains','problems','plans','focusDomainIds'}:
+                        if not isinstance(data,dict) or data.get('version')!=1 or not {'version','kinds','categories','habits'}<=set(data)<= {'version','kinds','categories','habits','domains','problems','plans','focusDomainIds','metricDefinitions'}:
                             raise ValueError('表单配置不兼容')
                         for field,keys in [('domains',{'id','name'}),('problems',{'id','domainId','title'}),('plans',{'id','domainId','problemId','title'})]:
                             rows=data.get(field,[])
@@ -124,6 +124,9 @@ def handler(relay):
                                 if not isinstance(r,dict) or not keys<=set(r)<=keys|optional or any(not isinstance(r[k],str) for k in keys):raise ValueError('推进表单配置无效')
                                 if r.get('parentId') is not None:identifier(r['parentId'])
                                 if r.get('nodeType','solution') not in ('solution','question'):raise ValueError('路径类型无效')
+                        if 'metricDefinitions' in data:
+                            from daily_metrics import definitions
+                            definitions(data['metricDefinitions'])
                         ids=data.get('focusDomainIds',[])
                         if not isinstance(ids,list) or any(not isinstance(id,str) for id in ids) or len(set(ids))!=len(ids) or set(ids)-{d['id'] for d in data.get('domains',[])}:raise ValueError('专注领域配置无效')
                         c.execute('INSERT OR REPLACE INTO config VALUES (1,?)',(canonical(data),))
@@ -146,7 +149,7 @@ def handler(relay):
             if post: return self.send({'error':'接口不存在'},404)
             files={'/':'mobile/index.html','/sw.js':'mobile/sw.js','/mobile/app.js':'mobile/app.js',
                    '/mobile/style.css':'mobile/style.css','/static/capture-form.js':'static/capture-form.js',
-                   '/static/expense-allocation.js':'static/expense-allocation.js','/static/expense-allocation-form.js':'static/expense-allocation-form.js','/static/plan-path.js':'static/plan-path.js', '/static/task-model.js':'static/task-model.js',
+                   '/static/expense-allocation.js':'static/expense-allocation.js','/static/expense-allocation-form.js':'static/expense-allocation-form.js','/static/daily-metrics-model.js':'static/daily-metrics-model.js','/static/plan-path.js':'static/plan-path.js', '/static/task-model.js':'static/task-model.js',
                    '/mobile/timer-model.js':'mobile/timer-model.js','/mobile/timer-workbench.js':'mobile/timer-workbench.js',
                    '/static/favicon.ico':'static/favicon.ico','/static/icon-32.png':'static/icon-32.png',
                    '/static/icon-180.png':'static/icon-180.png'}

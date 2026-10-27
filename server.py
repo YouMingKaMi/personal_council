@@ -74,6 +74,9 @@ def archive(state):
                     lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('planId')==q['id'])
                 lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('problemId')==p['id'] and not u.get('planId'))
             z.writestr('个人推进台/'+clean(d['name'])+'--'+d['id']+'.md','\n\n'.join(lines))
+        if 'dailyMetrics' in state:
+            from daily_metrics import export_csv as metrics_csv
+            z.writestr('每日指标.csv',metrics_csv(state))
         z.writestr('说明.txt', 'personal-system.json 是完整恢复文件。笔记目录为可独立阅读的 Markdown 正文。任务、习惯、字段和布局保存在 JSON 中。国库目录含当前账户明细与固定盘点副本。外部附件尚未迁移。')
     return stream.getvalue()
 
@@ -182,6 +185,9 @@ def handler(repo, backup=None, mobile=None, timer_clock=None):
                 if size <= 0 or size > 25_000_000:
                     return self.send({'error': '请求大小超出限制'}, 413)
                 data = json.loads(self.rfile.read(size))
+                if path == '/api/daily-metrics':
+                    from daily_metrics import command as metrics_command
+                    return self.send(metrics_command(repo,space,data))
                 if path == '/api/advancement':
                     from advancement_service import command, INTERNAL_CLOCK_OPS
                     if data.get('op') in INTERNAL_CLOCK_OPS:
