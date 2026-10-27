@@ -1,6 +1,7 @@
 import {esc,btn,icon,toast} from './ui.js';
 import {today,folderPath} from './model.js';
 import {folderProgress} from './advancement-folder-view.js';
+import {timerConnection} from './advancement-connection.js';
 import {statisticsView} from './advancement-statistics-view.js';
 import {validMonth,shiftMonth} from './advancement-statistics.js';
 import {data,domains,workbenchDomains,issues,current,states,format,clock,total,activeMs,weekStart,timerText,plans,currentPlan,planStates,target} from './advancement-model.js';
@@ -135,8 +136,13 @@ export function createAdvancement(ctx){
   if(e.dataset.advanceStatus){const p=a().issues.find(p=>p.id===e.dataset.advanceStatus);await send({op:'problem-edit',id:p.id,expected:p.updatedAt,status:e.value,date:today()});}
  }
  function tick(){const r=a().active,day=today();if(ctx.view().page==='today'&&workbenchDay&&workbenchDay!==day){ctx.render();return;}const dayTotal=total(ctx.state(),{start:day,end:day});for(const row of document.querySelectorAll('[data-advance-bar]')){const ms=total(ctx.state(),{start:day,end:day,domainId:row.dataset.advanceBar});row.querySelector('span:last-child').textContent=format(ms);row.querySelector('b').style.width=`${Math.min(100,ms/Math.max(1,dayTotal)*100)}%`;}for(const el of document.querySelectorAll('[data-advance-clock]'))el.textContent=clock(activeMs(r));for(const [key,opts] of [['today',{start:day,end:day}],['week',{start:weekStart(day),end:day}],['month',{start:day.slice(0,7)+'-01',end:day}]])for(const el of document.querySelectorAll(`[data-advance-${key}]`))el.textContent=format(total(ctx.state(),opts));}
- function afterRender(){document.querySelector('#advance-floating')?.remove();const r=a().active;if(r&&ctx.view().page!=='today'){const el=document.createElement('div');el.id='advance-floating';el.innerHTML=`<button data-action="advance-open" ${attr(r.domainId)}>${esc(a().domains.find(d=>d.id===r.domainId)?.name)} <b data-advance-clock>${clock(activeMs(r))}</b></button>${btn(r.status==='running'?'advance-pause':'advance-resume',r.status==='running'?'暂停':'继续','','ghost small')}${btn('advance-end','结束','','ghost small')}${btn('advance-cancel','','close','ghost small',attr(r.id)+' aria-label="取消本次计时"')}`;document.body.append(el);}tick();}
+ function afterRender(){connection.ensure();document.querySelector('#advance-floating')?.remove();const r=a().active;if(r&&ctx.view().page!=='today'){const el=document.createElement('div');el.id='advance-floating';el.innerHTML=`<button data-action="advance-open" ${attr(r.domainId)}>${esc(a().domains.find(d=>d.id===r.domainId)?.name)} <b data-advance-clock>${clock(activeMs(r))}</b></button>${btn(r.status==='running'?'advance-pause':'advance-resume',r.status==='running'?'暂停':'继续','','ghost small')}${btn('advance-end','结束','','ghost small')}${btn('advance-cancel','','close','ghost small',attr(r.id)+' aria-label="取消本次计时"')}`;document.body.append(el);}tick();}
  setInterval(tick,1000);
- setInterval(async()=>{const r=a().active;if(!r||r.status!=='running'||sending||ctx.busy())return;try{const old=r.status;await send({op:r.owner===owner?'heartbeat':'reconcile',id:r.id,owner},{render:false});if(a().active?.status!==old||mode==='stats'&&ctx.view().page==='advance'&&!document.querySelector('dialog[open]')&&!document.activeElement?.closest('input,textarea,select'))ctx.render();}catch(error){toast('计时保存未成功：'+error.message,true);}},15000);
+ async function syncTimer(){const r=a().active;if(!r||sending||ctx.busy())return;try{const old=r.status;await send({op:r.clockMode!=='server'&&r.owner===owner?'heartbeat':'reconcile',id:r.id,owner},{render:false});connection.ensure();tick();if(a().active?.status!==old||mode==='stats'&&ctx.view().page==='advance'&&!document.querySelector('dialog[open]')&&!document.activeElement?.closest('input,textarea,select'))ctx.render();}catch(error){toast('计时状态读取未成功：'+error.message,true);}}
+ const connection=timerConnection({active:()=>a().active,space:ctx.space,owner,sync:syncTimer});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden){connection.ensure();syncTimer();}});
+ window.addEventListener('pagehide',()=>connection.close());
+ window.addEventListener('pageshow',()=>{connection.ensure();syncTimer();});
+ setInterval(()=>{if(a().active?.status==='running')syncTimer();},15000);
  return {page,workbench,folderSection:id=>folderProgress(ctx.state(),id),action,submit,input,change,afterRender,snapshot:()=>({selected,chosen,planSelected,filter,query,mode,statsMonth,statsDomain,statsDay,statsCount}),restore:v=>({selected,chosen,planSelected='',filter,query,mode='problems',statsMonth=today().slice(0,7),statsDomain='',statsDay='',statsCount=6}=v)};
 }

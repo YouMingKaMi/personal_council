@@ -14,13 +14,14 @@ export function workbenchDomains(s,day,now=Date.now()){
   if(!r.deleted&&(r.manual?r.date===day:overlap(r.segments)||r.durationMs===0&&r.date===day))ids.add(r.domainId);
  }
  const r=a.active;
- if(r&&(r.date===day||overlap(r.segments)||r.status==='running'&&Math.min(now,r.lastSeen+60000)>lo&&r.segmentStart<hi))ids.add(r.domainId);
+ if(r&&(r.date===day||overlap(r.segments)||r.status==='running'&&activeEnd(r,now)>lo&&r.segmentStart<hi))ids.add(r.domainId);
  return a.domains.filter(d=>ids.has(d.id)&&(!d.archived||total(s,{start:day,end:day,domainId:d.id,now})>0)).map(d=>({...d,temporary:!focus.has(d.id)}));
 }
 export const issues=(s,d)=>data(s).issues.filter(p=>p.domainId===d&&!p.deleted);
 export const format=ms=>{const m=Math.floor(Math.max(0,ms)/60000),h=Math.floor(m/60);return h?`${h}h${String(m%60).padStart(2,'0')}m`:`${m}m`;};
 export const clock=ms=>{const t=Math.floor(Math.max(0,ms)/1000);return [Math.floor(t/3600),Math.floor(t/60)%60,t%60].map(x=>String(x).padStart(2,'0')).join(':');};
-export function activeMs(r,now=Date.now()){return r?r.segments.reduce((s,r)=>s+r.end-r.start,0)+(r.status==='running'?Math.max(0,Math.min(now,r.lastSeen+60000)-r.segmentStart):0):0;}
+export const activeEnd=(r,now=Date.now())=>Math.min(now,r.lastSeen+(r.clockMode==='server'?30000:60000));
+export function activeMs(r,now=Date.now()){return r?r.segments.reduce((s,r)=>s+r.end-r.start,0)+(r.status==='running'?Math.max(0,activeEnd(r,now)-r.segmentStart):0):0;}
 export function interval(day){const start=Date.parse(day+'T00:00:00+08:00');return [start,start+86400000];}
 export function total(s,{start,end,domainId,problemId,planId,now=Date.now()}={}){
  const a=data(s),lo=start?interval(start)[0]:-Infinity,hi=end?interval(end)[1]:Infinity;
@@ -32,7 +33,7 @@ export function total(s,{start,end,domainId,problemId,planId,now=Date.now()}={})
   else sum+=add(r.segments);
  }
  const r=a.active;
- if(r&&selected(r)){sum+=add(r.segments);if(r.status==='running')sum+=add([{start:r.segmentStart,end:Math.min(now,r.lastSeen+60000)}]);}
+ if(r&&selected(r)){sum+=add(r.segments);if(r.status==='running')sum+=add([{start:r.segmentStart,end:activeEnd(r,now)}]);}
  return sum;
 }
 export function weekStart(day){const d=new Date(day+'T12:00:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}

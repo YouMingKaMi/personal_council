@@ -102,6 +102,7 @@ def validate_advancement(state):
             if not s['manual'] and s['durationMs']!=sum(r['end']-r['start'] for r in s['segments']):raise ValueError('计时合计不一致')
     active=a.get('active')
     if active is not None:
+        if 'clockMode' in active and active['clockMode']!='server':raise ValueError('计时确认方式无效')
         belongs(active);plan_belongs(active);ident(active.get('id'));ident(active.get('owner'));text(active.get('title'),300)
         if active.get('status') not in ('running','paused'):raise ValueError('当前计时状态无效')
         day(active.get('date'));segments(active.get('segments'));number(active.get('lastSeen'))

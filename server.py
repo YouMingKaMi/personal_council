@@ -77,7 +77,7 @@ def archive(state):
     return stream.getvalue()
 
 
-def handler(repo, backup=None, mobile=None):
+def handler(repo, backup=None, mobile=None, timer_clock=None):
     def capture():
         nonlocal mobile
         if mobile is None:
@@ -118,6 +118,28 @@ def handler(repo, backup=None, mobile=None):
         def do_GET(self):
             try:
                 path, space = self.route()
+                if path == '/api/advancement/watch':
+                    # This GET keeps a timer alive: require browser same-origin
+                    # metadata, not just CORS, before registering its connection.
+                    if not timer_clock or self.headers.get('Sec-Fetch-Site')!='same-origin' or self.headers.get('Origin', 'http://'+self.headers.get('Host',''))!='http://'+self.headers.get('Host',''):
+                        return self.send({'error':'请求来源无效'},403)
+                    from advancement_domain import ident
+                    owner=ident(parse_qs(urlparse(self.path).query).get('owner',[''])[0])
+                    self.connection.settimeout(10)
+                    self.send_response(200)
+                    self.send_header('Content-Type','text/event-stream')
+                    self.send_header('Cache-Control','no-store')
+                    self.send_header('X-Content-Type-Options','nosniff')
+                    self.end_headers()
+                    with timer_clock.watch(space,owner):
+                        try:
+                            while not timer_clock.stopped.is_set():
+                                self.wfile.write(b'retry: 1000\n: connected\n\n')
+                                self.wfile.flush()
+                                if timer_clock.stopped.wait(5):break
+                        except OSError:pass
+                    self.close_connection=True
+                    return
                 if path == '/api/mobile-inbox':
                     connection = capture()
                     if space != 'main': return self.send({'error':'手机收件箱只连接正式空间'},400)
@@ -160,8 +182,10 @@ def handler(repo, backup=None, mobile=None):
                     return self.send({'error': '请求大小超出限制'}, 413)
                 data = json.loads(self.rfile.read(size))
                 if path == '/api/advancement':
-                    from advancement_service import command
-                    return self.send(command(repo,space,data))
+                    from advancement_service import command, INTERNAL_CLOCK_OPS
+                    if data.get('op') in INTERNAL_CLOCK_OPS:
+                        return self.send({'error':'内部计时操作不可从网页调用'},403)
+                    return self.send(command(repo,space,data,server_timer=timer_clock is not None))
                 if path.startswith('/api/mobile-inbox/'):
                     connection = capture()
                     if space != 'main': return self.send({'error':'测试空间不能处理手机记录'},403)
@@ -226,8 +250,11 @@ if __name__ == '__main__':
     try:
         from mobile_inbox import MobileInbox
         from mobile_bridge import MobileBridge
+        from advancement_clock import AdvancementClock
         mobile = MobileBridge(MobileInbox(repo))
-        server = ThreadingHTTPServer(('127.0.0.1', args.port), handler(repo, backup, mobile))
+        timer_clock=AdvancementClock(repo)
+        server = ThreadingHTTPServer(('127.0.0.1', args.port), handler(repo, backup, mobile, timer_clock))
+        timer_clock.start()
         mobile.start()
     except OSError as e:
         print(f'无法启动：{e}', file=sys.stderr)
@@ -248,5 +275,6 @@ if __name__ == '__main__':
         server.server_close()
         if alias:alias.shutdown();alias.server_close()
     finally:
+        timer_clock.close()
         mobile.close()
         if backup: backup.close()

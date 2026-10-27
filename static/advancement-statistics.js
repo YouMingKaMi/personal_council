@@ -1,4 +1,4 @@
-import {data,interval} from './advancement-model.js';
+import {data,interval,activeEnd} from './advancement-model.js';
 import {today,daysInMonth} from './model.js';
 
 export const validMonth=value=>/^\d{4}-(0[1-9]|1[0-2])$/.test(value)&&Number(value.slice(0,4))>0;
@@ -17,7 +17,7 @@ export function timeRows(state,now=Date.now()){
  if(r){
   const segments=[...r.segments];
   if(r.status==='running'&&r.segmentStart!=null){
-   const end=Math.min(now,r.lastSeen+60000);
+   const end=activeEnd(r,now);
    if(end>r.segmentStart)segments.push({start:r.segmentStart,end});
   }
   rows.push({...r,segments,manual:false,live:true});

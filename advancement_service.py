@@ -6,6 +6,10 @@ import uuid
 from advancement_domain import ident,text,day,number
 from advancement_folders import new_domain,rename_domain,synchronize
 
+SERVER_CLOCK_GAP_MS = 30000
+INTERNAL_CLOCK_OPS = ('clock-pulse', 'clock-interrupt')
+BACKGROUND_OPS = ('heartbeat', 'reconcile') + INTERNAL_CLOCK_OPS
+
 
 def empty(state):
     roots={f['id'] for f in state['folders'] if f['name']=='中科院'}
@@ -24,7 +28,8 @@ def close_segment(active,end):
 
 def reconcile(a,now):
     r=a.get('active')
-    if r and r['status']=='running' and now-r['lastSeen']>60000:
+    limit=SERVER_CLOCK_GAP_MS if r and r.get('clockMode')=='server' else 60000
+    if r and r['status']=='running' and (now-r['lastSeen']>limit or now<r['lastSeen']):
         close_segment(r,r['lastSeen']);r['interrupted']=True
         return True
     return False
@@ -97,6 +102,15 @@ def add_update(state,p,id,at):
 def mutate(state,c,now):
     a=state.setdefault('advancement',empty(state));op=c.get('op');at=stamp(now)
     if op in ('init','reconcile','sync-folders'):return
+    if op in INTERNAL_CLOCK_OPS:
+        r=a.get('active')
+        # A delayed worker must never revive or affect a replacement session.
+        if not r or r['id']!=c.get('id') or r['owner']!=c.get('owner') or r['status']!='running':return
+        if op=='clock-interrupt':
+            close_segment(r,r['lastSeen']);r['interrupted']=True
+        elif r.get('clockMode')=='server' and c.get('connected') is True:
+            r['lastSeen']=now
+        return
     if op in ('workbench-focus','workbench-select'):
         w=a.setdefault('workbench',{'focusDomainIds':[],'temporaryDate':None,'temporaryDomainIds':[]})
         if op=='workbench-focus':
@@ -205,7 +219,7 @@ def mutate(state,c,now):
         elif not r:
             if op!='heartbeat':raise ValueError('当前没有计时')
         elif op=='heartbeat':
-            if r['status']=='running' and r['owner']==c.get('owner'):r['lastSeen']=now
+            if r['status']=='running' and r['owner']==c.get('owner') and r.get('clockMode')!='server':r['lastSeen']=now
         elif op=='pause':
             if r['status']=='running':close_segment(r,now)
         elif op=='resume':
@@ -246,33 +260,37 @@ def mutate(state,c,now):
     else:raise ValueError('未知推进操作')
 
 
-def command(repo,space,c,clock=None):
+def command(repo,space,c,clock=None,*,server_timer=False):
     from domain import validate
     now=int((time.time() if clock is None else clock)*1000)
     if not isinstance(c,dict):raise ValueError('推进请求无效')
     op=c.get('op');request=c.get('commandId')
-    if op not in ('heartbeat','reconcile','init'):ident(request)
+    if op not in BACKGROUND_OPS+('init',):ident(request)
     changed=False
     with repo.connect() as db:
         db.execute('BEGIN IMMEDIATE')
         revision,body=db.execute('SELECT revision,body FROM spaces WHERE name=?',(space,)).fetchone()
         state=json.loads(body);a=state.setdefault('advancement',empty(state));before=json.dumps(state,ensure_ascii=False,sort_keys=True)
         initialized='advancement' not in json.loads(body)
+        was_running=bool(a.get('active') and a['active']['status']=='running')
         reconcile(a,now)
         synchronize(state)
         if request not in a['commands']:
             mutate(state,c,now)
-            if request:a['commands']=(a['commands']+[request])[-2000:]
+            if server_timer and op in ('start','resume','switch') and a.get('active'):
+                a['active']['clockMode']='server'
+            if request and op not in BACKGROUND_OPS:a['commands']=(a['commands']+[request])[-2000:]
         synchronize(state)
         validate(state)
         if initialized or json.dumps(state,ensure_ascii=False,sort_keys=True)!=before:
             # Heartbeats are durable, but should not evict useful user-change snapshots.
-            if op not in ('heartbeat','reconcile'):
+            if op not in BACKGROUND_OPS:
                 db.execute('INSERT INTO snapshots(space,revision,body) VALUES (?,?,?)',(space,revision,body))
                 db.execute('DELETE FROM snapshots WHERE space=? AND id NOT IN (SELECT id FROM snapshots WHERE space=? ORDER BY id DESC LIMIT 100)',(space,space))
             revision+=1;changed=True
             db.execute('UPDATE spaces SET revision=?,body=? WHERE name=?',(revision,json.dumps(state,ensure_ascii=False),space))
-    if changed and repo.on_saved and (op!='heartbeat' or now-getattr(repo,'_advance_backup_at',0)>=300000):
+    stopped=was_running and a.get('active') and a['active']['status']=='paused'
+    if changed and repo.on_saved and (stopped or op not in BACKGROUND_OPS or now-getattr(repo,'_advance_backup_at',0)>=300000):
         repo._advance_backup_at=now
         repo.on_saved()
     return {'state':state,'revision':revision}
