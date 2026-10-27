@@ -39,3 +39,8 @@ export function tagSummary(notes){
  return [...counts].map(([tag,count])=>({tag,count})).sort((a,b)=>b.count-a.count||a.tag.localeCompare(b.tag,'zh'));
 }
 export function mergeOriginalTags(note){return [...new Set([...note.tags,...extractNoteTags(note.body)])];}
+
+// Suggestions only: never infer authorship or classify saved notes automatically.
+export const commonNoteTags=Object.freeze(['AI生成','AI辅助','个人原创','摘录','大纲','资料']);
+export function parseTagInput(text){return [...new Set(text.split(/[,，]/).map(t=>t.trim()).filter(Boolean))];}
+export function noteTagOptions(selected=[],existing=[]){return [...new Set([...commonNoteTags,...selected,...existing])];}

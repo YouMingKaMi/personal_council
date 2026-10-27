@@ -65,6 +65,40 @@ class QueryTest(unittest.TestCase):
             self.query.call('council_read', {'section': 'tasks', 'revision': 6})
         self.assertEqual(before, self.state)
 
+    def test_note_tags_exact_filter_pagination_and_preserve_original(self):
+        self.state['notes'] = [
+            {'id': 'ai-outline', 'tags': ['AI生成', '大纲'], 'body': '  原文\n不改写'},
+            {'id': 'ai-material', 'tags': ['AI生成', '资料'], 'body': '资料'},
+            {'id': 'mention', 'tags': ['个人原创'], 'body': '提到 AI生成 并不代表来源'},
+            {'id': 'unknown', 'body': '没有标签'},
+            {'id': 'trash', 'tags': ['AI生成', '大纲'], 'trashed': True},
+        ]
+        before = copy.deepcopy(self.state)
+        first = self.query.call('council_read', {'section': 'notes', 'tags': ['AI生成'], 'limit': 1})
+        self.assertEqual(first['totalMatched'], 2)
+        self.assertEqual(first['records'][0]['tags'], ['AI生成', '大纲'])
+        self.assertEqual(first['records'][0]['body'], '  原文\n不改写')
+        second = self.query.call('council_read', {'section': 'notes', 'tags': ['AI生成'],
+                                               'offset': first['nextOffset'], 'revision': 7})
+        self.assertEqual(second['records'][0]['id'], 'ai-material')
+        both = self.query.call('council_read', {'section': 'notes', 'tags': ['AI生成', '大纲']})
+        self.assertEqual([r['id'] for r in both['records']], ['ai-outline'])
+        trash = self.query.call('council_read', {'section': 'notes', 'tags': ['AI生成', '大纲'],
+                                               'include_deleted': True})
+        self.assertEqual(trash['totalMatched'], 2)
+        self.assertEqual(self.query.call('council_read', {'section': 'notes', 'tags': ['AI']})['totalMatched'], 0)
+        self.assertEqual(self.query.call('council_read', {'section': 'notes', 'tags': []})['totalMatched'], 4)
+        self.assertEqual(before, self.state)
+
+    def test_invalid_note_tag_queries(self):
+        for args in ({'section': 'tasks', 'tags': ['AI生成']},
+                     {'section': 'notes', 'tags': [' ']},
+                     {'section': 'notes', 'tags': 'AI生成'},
+                     {'section': 'notes', 'tags': [1]},
+                     {'section': 'notes', 'tags': ['x'] * 31}):
+            with self.assertRaises(ValueError):
+                self.query.call('council_read', args)
+
     def test_habits_keep_rules_filter_entries(self):
         result = self.query.call('council_read', {'section': 'habits', 'start_date': '2020-01-02'})
         self.assertEqual(list(result['records'][0]['entries']), ['2020-01-02'])
