@@ -3,7 +3,7 @@ import datetime as dt
 import json
 import time
 import uuid
-from advancement_domain import ident,text,day,number
+from advancement_domain import ident,text,day,number,plan_chain,plan_available,problem_scope,PLAN_CLOSED
 from advancement_folders import new_domain,rename_domain,synchronize
 
 SERVER_CLOCK_GAP_MS = 30000
@@ -79,8 +79,12 @@ def add_plan(state,c,id,at):
             return existing
     if any(q['id']==id for q in a.get('plans',[])):raise ValueError('方案标识冲突')
     q={'id':ident(id),'domainId':p['domainId'],'problemId':p['id'],'title':text(c.get('title'),300,True).strip(),
-       'body':text(c.get('body','')),'status':'open','deleted':False,'sourceUpdateId':source,
+       'body':text(c.get('body','')),'status':c.get('status','open'),'deleted':False,'sourceUpdateId':source,
+       'parentId':c.get('parentId') or None,'nodeType':c.get('nodeType','solution'),
        'date':day(c.get('date') or at[:10]),'createdAt':at,'updatedAt':at}
+    if q['parentId']:
+        parent=plan(a,q['parentId'])
+        if parent['problemId']!=p['id']:raise ValueError('上级路径须属于同一个主问题')
     a.setdefault('plans',[]).append(q)
     if not p.get('focusPlanId'):p['focusPlanId']=id;p['updatedAt']=at
     return q
@@ -102,6 +106,34 @@ def add_update(state,p,id,at):
 def mutate(state,c,now):
     a=state.setdefault('advancement',empty(state));op=c.get('op');at=stamp(now)
     if op in ('init','reconcile','sync-folders'):return
+    if op=='path-restructure':
+        pid=issue(a,c.get('problemId'))['id']
+        if c.get('expected')!=problem_scope(a,pid):raise ValueError('相关记录已变化，请重新核对后调整')
+        steps=c.get('steps')
+        allowed={'plan-add','plan-edit','plan-focus','update-link','session-link'}
+        if not isinstance(steps,list) or not 1<=len(steps)<=100:raise ValueError('路径调整步骤无效')
+        for step in steps:
+            if not isinstance(step,dict) or step.get('op') not in allowed:raise ValueError('路径调整操作无效')
+            if step['op']=='plan-add':target_pid=step.get('problemId')
+            elif step['op'].startswith('plan-'):target_pid=plan(a,step.get('id'))['problemId']
+            else:
+                rows=a['updates'] if step['op']=='update-link' else a['sessions']
+                row=next((r for r in rows if r['id']==step.get('id')),None)
+                target_pid=(row or {}).get('problemId')
+            if target_pid!=pid:raise ValueError('只能调整指定主问题的路径')
+            mutate(state,step,now)
+        return
+    if op in ('update-link','session-link'):
+        rows=a['updates'] if op=='update-link' else a['sessions']
+        row=next((r for r in rows if r['id']==c.get('id')),None)
+        if not row or not row.get('problemId'):raise ValueError('原记录不存在或未关联主问题')
+        if 'expectedPlanId' not in c or c['expectedPlanId']!=row.get('planId'):raise ValueError('记录归属已变化，请重新核对')
+        issue(a,row['problemId']);qid=c.get('planId') or None
+        if qid:
+            q=plan(a,qid)
+            if q['problemId']!=row['problemId'] or q['domainId']!=row['domainId']:raise ValueError('只能移到同一主问题的路径')
+        row['planId']=qid
+        return
     if op in INTERNAL_CLOCK_OPS:
         r=a.get('active')
         # A delayed worker must never revive or affect a replacement session.
@@ -154,22 +186,30 @@ def mutate(state,c,now):
         if not u or not u.get('problemId'):raise ValueError('请选择某个问题下的进展记录')
         add_plan(state,{'problemId':u['problemId'],'domainId':u['domainId'],'sourceUpdateId':u['id'],
                         'title':c.get('title') or u['body'].strip().splitlines()[0][:300],
-                        'body':u['body'],'date':u['date']},c.get('id') or str(uuid.uuid4()),at)
+                        'body':u['body'],'date':u['date'],'parentId':c.get('parentId'),
+                        'nodeType':c.get('nodeType','solution')},c.get('id') or str(uuid.uuid4()),at)
+        if c.get('attachRecord') is True:
+            q=next(q for q in a['plans'] if q.get('sourceUpdateId')==u['id'])
+            u['planId']=q['id']
     elif op=='plan-edit':
         q=plan(a,c['id'])
         if c.get('expected')!=q['updatedAt']:raise ValueError('方案已在另一处更新，请重新打开后修改；草稿仍保留')
-        changes={k:c[k] for k in ('title','body','status') if k in c}
+        changes={k:c[k] for k in ('title','body','status','parentId','nodeType') if k in c}
+        if 'parentId' in changes:changes['parentId']=changes['parentId'] or None
+        active=a.get('active')
+        if active and active.get('planId') and any(x['id']==q['id'] for x in plan_chain(a.get('plans',[]),active['planId'])):
+            if changes.get('status') in PLAN_CLOSED:raise ValueError('请先结束这条路径的计时')
         if changes.get('status')=='done' and q['status']!='done':
             add_update(state,{'domainId':q['domainId'],'problemId':q['problemId'],'planId':q['id'],'date':c['date'],'body':'方案已完成'},str(uuid.uuid4()),at)
         q.update(changes,updatedAt=at)
     elif op=='plan-focus':
         q=plan(a,c['id']);p=issue(a,q['problemId']);domain(a,p['domainId'])
-        if q['status'] in ('done','parked'):raise ValueError('请先将方案恢复为待推进或推进中')
+        if not plan_available(a.get('plans',[]),q['id']):raise ValueError('请先重新打开这条路径及其上级')
         p['focusPlanId']=q['id'];p['updatedAt']=at;domain(a,p['domainId'])['focusId']=p['id']
     elif op=='plan-trash':
         q=next((q for q in a.get('plans',[]) if q['id']==c['id']),None)
         if not q:raise ValueError('方案不存在')
-        if a['active'] and a['active'].get('planId')==q['id']:raise ValueError('请先结束此方案的计时')
+        if a['active'] and a['active'].get('planId') and any(x['id']==q['id'] for x in plan_chain(a.get('plans',[]),a['active']['planId'])):raise ValueError('请先结束这条路径的计时')
         issue(a,q['problemId']);q['deleted']=bool(c.get('deleted',True));q['updatedAt']=at
     elif op=='problem-edit':
         p=issue(a,c['id'])
@@ -204,8 +244,9 @@ def mutate(state,c,now):
             if qid:
                 q=plan(a,qid)
                 if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('计时与方案不一致')
-                if q['status'] in ('done','parked'):raise ValueError('此方案已完成或暂放，请先重新打开')
-                if q['status']=='open':q.update(status='active',updatedAt=at)
+                if not plan_available(a.get('plans',[]),qid):raise ValueError('这条路径或上级已收起，请先重新打开')
+                for ancestor in plan_chain(a.get('plans',[]),qid):
+                    if ancestor['status']=='open':ancestor.update(status='active',updatedAt=at)
             if pid:
                 p=issue(a,pid)
                 if p['domainId']!=d['id']:raise ValueError('问题不属于此领域')

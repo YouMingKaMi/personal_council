@@ -13,7 +13,7 @@ FIELDS = {
     'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity', 'allocation'},
     'problem': {'date','domainId','title','body','next'},
     'progress': {'date','domainId','problemId','planId','body'},
-    'plan': {'date','domainId','problemId','title','body'},
+    'plan': {'date','domainId','problemId','title','body','parentId','nodeType'},
     'focus': {'date','domainId','problemId','planId','title','note','segments','durationMs','adjustedDurationMs'},
     'taskPlan': {'date','title','schedule','scheduledDate','deadline','deadlineTime'},
     'task': {'date', 'title'}, 'chronicle': {'date', 'text', 'endDate'},
@@ -82,7 +82,10 @@ def envelope(value):
             text(p.get('title'),300)
             for key in ('body','next'):
                 if not isinstance(p.get(key,''),str) or len(p.get(key,''))>100000:raise ValueError('问题内容无效')
-            if kind=='plan':identifier(p.get('problemId'))
+            if kind=='plan':
+                identifier(p.get('problemId'))
+                if p.get('parentId') is not None:identifier(p['parentId'])
+                if p.get('nodeType','solution') not in ('solution','question'):raise ValueError('路径类型无效')
         else:
             text(p.get('body'))
             if p.get('problemId') is not None:identifier(p['problemId'])
@@ -157,7 +160,12 @@ def form_config(state):
         kinds={k:v for k,v in kinds.items() if k not in ('problem','progress','plan','focus')}
     problems=[{k:p[k] for k in ('id','domainId','title')} for p in advancement.get('issues',[]) if p['domainId'] in field_ids and not p['deleted'] and p['status'] in ('open','active')]
     problem_ids={p['id'] for p in problems}
-    plans=[{k:q[k] for k in ('id','domainId','problemId','title')} for q in advancement.get('plans',[]) if q['problemId'] in problem_ids and not q['deleted'] and q['status'] in ('open','active')]
+    from advancement_domain import plan_available
+    plan_by_id={q['id']:q for q in advancement.get('plans',[])}
+    plans=[{**{k:q[k] for k in ('id','domainId','problemId','title')},
+            **({'parentId':q['parentId']} if q.get('parentId') else {}),
+            **({'nodeType':'question'} if q.get('nodeType')=='question' else {})}
+           for q in advancement.get('plans',[]) if q['problemId'] in problem_ids and plan_available(plan_by_id,q['id'])]
     focused=[id for id in advancement.get('workbench',{}).get('focusDomainIds',[]) if id in field_ids]
     return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems, 'plans':plans,'focusDomainIds':focused} if 'advancement' in state else {})}
 

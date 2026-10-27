@@ -29,6 +29,35 @@ def number(v):
     return v
 
 
+MAX_PLAN_DEPTH = 12
+PLAN_CLOSED = ('done', 'parked', 'abandoned')
+
+
+def plan_chain(rows, plan_id):
+    """Root-to-leaf ancestry, including removed ancestors for historical labels."""
+    by_id = rows if isinstance(rows, dict) else {q['id']: q for q in rows}
+    chain, seen = [], set()
+    while plan_id:
+        if plan_id in seen: raise ValueError('解决路径不能循环关联')
+        if plan_id not in by_id: raise ValueError('上级路径不存在')
+        seen.add(plan_id); q = by_id[plan_id]; chain.insert(0, q)
+        if len(chain) > MAX_PLAN_DEPTH: raise ValueError('解决路径最多支持 12 层')
+        plan_id = q.get('parentId')
+    return chain
+
+
+def plan_available(rows, plan_id):
+    return all(not q['deleted'] and q['status'] not in PLAN_CLOSED for q in plan_chain(rows, plan_id))
+
+
+def problem_scope(a, problem_id):
+    """Optimistic guard for an atomic, explicitly requested path repair."""
+    return {'problem': next((p for p in a['issues'] if p['id']==problem_id), None),
+            **{k: [r for r in a.get(k, []) if r.get('problemId')==problem_id]
+               for k in ('plans', 'updates', 'sessions')},
+            'active': a.get('active') if (a.get('active') or {}).get('problemId')==problem_id else None}
+
+
 def validate_advancement(state):
     a=state.get('advancement')
     if a is None:return
@@ -68,9 +97,13 @@ def validate_advancement(state):
         if p.get('problemId') and (p['problemId'] not in issues or issues[p['problemId']]['domainId']!=p['domainId']):raise ValueError('问题与领域不一致')
     for q in plans.values():
         belongs(q);text(q.get('title'),300,True);text(q.get('body',''))
-        if not q.get('problemId') or q.get('status') not in ('open','active','done','parked') or type(q.get('deleted')) is not bool:raise ValueError('方案状态无效')
+        if not q.get('problemId') or q.get('status') not in ('open','active','done','parked','abandoned') or type(q.get('deleted')) is not bool:raise ValueError('方案状态无效')
         if q.get('sourceUpdateId') is not None and not any(u['id']==q['sourceUpdateId'] and u.get('problemId')==q['problemId'] for u in a['updates']):raise ValueError('方案原记录不存在')
         if 'date' in q:day(q['date'])
+        if q.get('parentId') is not None:ident(q['parentId'])
+        if q.get('nodeType','solution') not in ('solution','question'):raise ValueError('路径类型无效')
+        for ancestor in plan_chain(plans,q['id']):
+            if ancestor['problemId']!=q['problemId'] or ancestor['domainId']!=q['domainId']:raise ValueError('上级路径须属于同一个主问题')
     def plan_belongs(row):
         if row.get('planId') and (row['planId'] not in plans or plans[row['planId']]['problemId']!=row.get('problemId') or plans[row['planId']]['domainId']!=row['domainId']):raise ValueError('方案与问题或领域不一致')
     for p in issues.values():

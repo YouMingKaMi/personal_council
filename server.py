@@ -69,7 +69,8 @@ def archive(state):
             for p in (p for p in a.get('issues',[]) if p['domainId']==d['id']):
                 lines.extend(['## '+p['title'],'状态：'+p['status']+('（回收站）' if p.get('deleted') else ''),p['body'],'下一步：'+p['next'],'结论：'+p['conclusion']])
                 for q in (q for q in a.get('plans',[]) if q['problemId']==p['id']):
-                    lines.extend(['### 方案：'+q['title'],'状态：'+q['status']+('（已移除）' if q.get('deleted') else ''),q.get('body','')])
+                    from advancement_domain import plan_chain
+                    lines.extend(['### '+('子问题：' if q.get('nodeType')=='question' else '方案：')+' / '.join(x['title'] for x in plan_chain(a.get('plans',[]),q['id'])),'状态：'+q['status']+('（已移除）' if q.get('deleted') else ''),q.get('body','')])
                     lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('planId')==q['id'])
                 lines.extend(u['date']+' · '+u['body'] for u in a.get('updates',[]) if u.get('problemId')==p['id'] and not u.get('planId'))
             z.writestr('个人推进台/'+clean(d['name'])+'--'+d['id']+'.md','\n\n'.join(lines))

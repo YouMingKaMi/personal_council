@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {planChain,planLabel,planTree,planAvailable,inPlanBranch,total,currentPlan} from '../static/advancement-model.js';
+import {fields} from '../static/capture-form.js';
+import {createAdvancement} from '../static/advancement-feature.js';
+const rows=[{id:'root',title:'查国内资源',problemId:'p',domainId:'d',status:'active',deleted:false},{id:'old',parentId:'root',title:'第一门课',problemId:'p',domainId:'d',status:'abandoned',deleted:false},{id:'new',parentId:'root',title:'第二门课',problemId:'p',domainId:'d',status:'active',deleted:false},{id:'sub',parentId:'new',nodeType:'question',title:'弄清概念',problemId:'p',domainId:'d',status:'open',deleted:false}];
+assert.deepEqual(planChain(rows,'sub').map(q=>q.id),['root','new','sub']);assert.equal(planLabel(rows,'new'),'查国内资源 / 第二门课');
+assert.deepEqual(planTree(rows).map(q=>[q.id,q.depth]),[['root',0],['old',1],['new',1],['sub',2]]);
+assert.equal(planAvailable(rows,'old'),false);assert.equal(inPlanBranch(rows,'sub','root'),true);
+const s={notes:[],advancement:{domains:[{id:'d',name:'测试领域',goal:'',focusId:'p',archived:false}],issues:[{id:'p',domainId:'d',focusPlanId:'new',status:'active',deleted:false,title:'找到合适的课程',body:'',next:'',conclusion:'',links:[],updatedAt:'2026-10-27T01:00:00Z'}],plans:rows,updates:[{id:'u1',domainId:'d',problemId:'p',planId:'old',date:'2026-10-27',createdAt:'2026-10-27T00:00:00Z',body:'原文：第一门时间太长'},{id:'u2',domainId:'d',problemId:'p',planId:'new',date:'2026-10-27',createdAt:'2026-10-27T01:00:00Z',body:'原文：学习了第一节'}],sessions:[{id:'s',domainId:'d',problemId:'p',planId:'new',manual:true,date:'2026-10-27',deleted:false,durationMs:658498,segments:[]}],active:null}};
+assert.equal(total(s),658498);assert.equal(total(s,{planId:'root'}),0);assert.equal(total(s,{planId:'root',subtree:true}),658498);assert.equal(total(s,{planId:'new',subtree:true}),658498);assert.equal(currentPlan(s,'p').id,'new');
+const cfg={domains:[{id:'d',name:'测试领域'}],problems:[{id:'p',domainId:'d',title:'找到合适的课程'}],plans:rows.filter(q=>q.status!=='abandoned')};
+assert.match(fields('progress',{domainId:'d',problemId:'p',planId:'new'},cfg),/查国内资源 \/ 第二门课/);
+assert.match(fields('plan',{domainId:'d',problemId:'p',parentId:'root',nodeType:'question'},cfg),/上级路径/);
+assert.match(fields('plan',{domainId:'d',problemId:'p',parentId:'removed-parent'},cfg),/value="removed-parent" selected>原上级路径已变化/);
+// Browser-free view test: choosing any path must not hide another path's original notes.
+globalThis.sessionStorage={getItem:()=> 'test-owner'};globalThis.localStorage={getItem:()=>null};globalThis.setInterval=()=>0;globalThis.document={addEventListener:()=>{}};globalThis.window={addEventListener:()=>{}};
+let renders=0;const feature=createAdvancement({state:()=>s,view:()=>({page:'advance',id:'d'}),heading:()=>'',render:()=>renders++,space:()=> 'main'});
+let html=feature.page();assert.match(html,/原文：第一门时间太长/);assert.match(html,/原文：学习了第一节/);assert.match(html,/这个问题的全部记录/);assert.match(html,/advance-record-path/);
+await feature.action('advance-plan-select',{dataset:{id:'old'}});html=feature.page();assert.match(html,/原文：第一门时间太长/);assert.match(html,/原文：学习了第一节/);assert.match(html,/记录到：查国内资源 \/ 第一门课/);
+await feature.action('advance-plan-all',{dataset:{}});html=feature.page();assert.match(html,/记录到：主问题/);assert.equal(renders,2);
+rows[0].status='abandoned';assert.equal(planAvailable(rows,'sub'),false);assert.equal(currentPlan(s,'p'),undefined);assert.equal(total(s),658498);
+console.log('Nested solution/question paths, independent full timeline, mobile forms, closed ancestors and non-duplicated time totals passed');

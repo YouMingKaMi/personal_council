@@ -86,3 +86,6 @@ expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个�
 部署时除既有文件，还需 expense_allocation.py、task_domain.py、static/expense-allocation.js、static/expense-allocation-form.js、static/task-model.js。更新手机 app/style/sw、共享 capture-form、capture_contract 和静态白名单，保留服务器凭证及待处理数据库，更新后验证新三个 JS 均为 200。配置增加 taskPlan kind，不增加用户私人历史字段；电脑后台同步后发布最少录入配置。无远程审批权限扩张。
 
 手机界面将每日与近期合为单个“任务”入口，内选近期／具体日期／截止日期。新界面继续使用已支持的 taskPlan，不改旧 task 的 date 含义；旧 task 草稿、队列和回执保留，在缺少 taskPlan 配置时仍展示旧入口。optional 的显示名改为非必要，封套 necessity 值不变，旧手机发送 optional 仍以同一必要性确认入库。
+
+## 2026-10-27 路径层级
+既有 v1 plan 仅新增可选 parentId、nodeType=solution/question，旧离线 plan/progress/focus 不改语义。电脑配置只添加非空 parentId 与 question 类型，不发送历史正文或时长。手机方案可选择上级及类型，进展/计时选择器显示完整路径；切换问题清空旧上级。已放弃、已完成、暂放或已移除的分支及其子级不进入新录入配置；旧待审批记录仍核对同一主问题后保留入库。中转站需同步 advancement_domain.py、capture_contract.py、capture_relay.py、static/plan-path.js 与更新后的手机表单、计时、缓存模块。

@@ -121,3 +121,6 @@ SSE 只传保活注释，不传个人正文；仅接收本机 Host 与 Sec-Fetch
 仍共用 state.tasks，schedule/date/deadline/completedDate 无变更。taskVisible/taskRequired 只选择对应日期的 day 任务（兼容无 schedule 的旧任务）；backlogTasks 只选择 recent/deadline，未完成独立展示，主页完成折叠仅显示今天，任务页折叠保留全部已完成待办，防旧记录失去编辑入口。转为当天或改回待办保留 ID、folder、推进关联等字段，表单移除资料夹关联控件，不因缺失字段而清空旧值。任务页、侧栏与手机显示“任务”，真实资料夹名及历史 ID 不改。手机隐藏重复旧 task 按钮（无新配置时仍回退展示），统一入口用原 taskPlan，旧离线 task、旧草稿及已提交内容照常处理。
 新增布局 ID task-backlog，domain 接受；loadWorkspace 通过现有 store.change CAS 仅在缺失时插入一次，默认半宽并置于 tasks 之后，保留已有位置、宽度与隐藏选择。restore/import 和旧数据不被批量重写，下次打开时补齐卡片。已保存布局可独立拖动、调宽与隐藏。旧程序不认识新布局 ID，回退须使用发布前备份并在独立目录恢复。
 消费必要性 optional 只改显示为“非必要”，包括录入、筛选、预算、明细、手机摘要与 CSV；费用、必要性代码、原类别、已发封套不改。分类或方案等字段中的“可选”提示不受此术语调整影响。检查覆盖分区互斥、进度、同 ID 转换、完成记录、旧关联保留、布局幂等／隐藏、手机新旧契约与完整备份恢复；浏览器验证独立卡片与统一手机入口。
+
+## 2026-10-27 解决路径树
+plans 可选 parentId（同主问题、同领域、最多 12 层、禁止循环）和 nodeType=solution/question，旧平级方案视为根方案。新增 abandoned 状态，保留历史，关闭祖先后不能从子级启动；当前计时路径及祖先不能关闭或移除。精确 planId 时长仍保留原语义；UI 父级汇总显式使用 subtree。主问题时间线始终汇总所有进展，选择路径只影响新增记录和计时目标。update-link/session-link 只调整同主问题内的归属，不修改原文或时段；path-restructure 使用原问题完整范围作并发校验，一次事务执行有限操作，失败整批回滚，commandId 幂等。

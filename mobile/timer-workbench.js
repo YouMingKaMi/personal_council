@@ -1,3 +1,4 @@
+import {planLabel} from '/static/plan-path.js';
 import {escape as esc,durationLabel} from '/static/capture-form.js';
 import {beginTimer,checkpoint,transition,timerSubmission,elapsed,timeClock} from './timer-model.js';
 
@@ -17,7 +18,7 @@ export function createPhoneWorkbench(ctx){
   const ps=(c.problems||[]).filter(p=>p.domainId===did),pid=ps.some(p=>p.id===v.problemId)?v.problemId:'';
   const qs=(c.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid);
   if(!ds.length)return '<p class="empty">先在电脑建立领域，再更新手机选项。</p>';
-  return `<form id="focus-start" class="focus-config"><label>领域<select name="domainId" aria-label="计时领域">${focused.length?`<optgroup label="专注领域">${focused.map(d=>option(d,did)).join('')}</optgroup><optgroup label="其他领域">${ds.filter(d=>!focused.some(x=>x.id===d.id)).map(d=>option(d,did)).join('')}</optgroup>`:ds.map(d=>option(d,did)).join('')}</select></label><label>这次做什么（可选）<input name="title" aria-label="这次做什么" maxlength="300" value="${esc(v.title)}" placeholder="例如：跑步、训练、读资料"></label><details ${pid?'open':''}><summary>关联问题或方案（可选）</summary><label>问题<select name="problemId" aria-label="计时问题"><option value="">自由推进</option>${ps.map(p=>option(p,pid)).join('')}</select></label><label>方案<select name="planId" aria-label="计时方案"><option value="">不关联方案</option>${qs.map(q=>option(q,v.planId)).join('')}</select></label></details><button type="submit" class="primary focus-start">▷ 开始推进</button></form>${w.cancelledTimer?button('restore','撤销上次取消','link focus-undo'):''}`;
+  return `<form id="focus-start" class="focus-config"><label>领域<select name="domainId" aria-label="计时领域">${focused.length?`<optgroup label="专注领域">${focused.map(d=>option(d,did)).join('')}</optgroup><optgroup label="其他领域">${ds.filter(d=>!focused.some(x=>x.id===d.id)).map(d=>option(d,did)).join('')}</optgroup>`:ds.map(d=>option(d,did)).join('')}</select></label><label>这次做什么（可选）<input name="title" aria-label="这次做什么" maxlength="300" value="${esc(v.title)}" placeholder="例如：跑步、训练、读资料"></label><details ${pid?'open':''}><summary>关联问题或方案（可选）</summary><label>问题<select name="problemId" aria-label="计时问题"><option value="">自由推进</option>${ps.map(p=>option(p,pid)).join('')}</select></label><label>方案<select name="planId" aria-label="计时方案"><option value="">不关联方案</option>${qs.map(q=>option({...q,title:planLabel(c.plans||[],q.id)},v.planId)).join('')}</select></label></details><button type="submit" class="primary focus-start">▷ 开始推进</button></form>${w.cancelledTimer?button('restore','撤销上次取消','link focus-undo'):''}`;
  }
  function view(){
   try{

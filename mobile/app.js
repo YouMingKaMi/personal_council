@@ -47,7 +47,7 @@ async function flush(){
  await refresh();
 }
 document.addEventListener('input',e=>{workbench.input(e.target);if(['usageMonths','usageStart','usageExpectedEnd'].includes(e.target.name))updateAllocationForm(e.target);if(e.target.closest('#capture-form'))try{draft();}catch(err){message(err.message);}});
-document.addEventListener('change',async e=>{try{if(updateAllocationForm(e.target)){draft();return;}if(e.target.name==='schedule'){updateTaskPlanFields(e.target.closest('form'));draft();return;}if(await workbench.change(e.target))return;}catch(err){message(err.message);return;}if(['domainId','problemId'].includes(e.target.name)){draft();if(e.target.name==='domainId')delete state.drafts[kind].problemId;delete state.drafts[kind].planId;persist();render();return;}if(kind==='habit'&&['date','habitId'].includes(e.target.name)){
+document.addEventListener('change',async e=>{try{if(updateAllocationForm(e.target)){draft();return;}if(e.target.name==='schedule'){updateTaskPlanFields(e.target.closest('form'));draft();return;}if(await workbench.change(e.target))return;}catch(err){message(err.message);return;}if(['domainId','problemId'].includes(e.target.name)){draft();if(e.target.name==='domainId')delete state.drafts[kind].problemId;delete state.drafts[kind].planId;delete state.drafts[kind].parentId;persist();render();return;}if(kind==='habit'&&['date','habitId'].includes(e.target.name)){
  const p=currentPayload();state.drafts[kind]={date:p.date,habitId:p.habitId};try{persist();render();}catch(err){message(err.message);}
 }});
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;try{

@@ -1,4 +1,5 @@
 import {allocationFields,allocationFromForm,updateAllocationForm} from './expense-allocation-form.js';
+import {planLabel} from './plan-path.js';
 import {taskPlanFields,taskPlan,updateTaskPlanFields} from './task-model.js';
 export {updateAllocationForm,updateTaskPlanFields};
 // Public v1 field names are stable. Both desktop approval and phone use this form adapter.
@@ -12,7 +13,7 @@ export function fields(kind,p={},config){
  const date=p.date||today();
  let html=`<label ${kind==='taskPlan'?'hidden':''}>日期<input name="date" aria-label="日期" type="date" min="1901-01-01" max="2099-12-31" value="${escape(date)}" ${kind==='focus'?'readonly':''} required></label>`;
  if(kind==='focus'){
-  const options=(rows,id,missing)=>`${id&&!rows.some(r=>r.id===id)?option(id,missing,id):''}${rows.map(r=>option(r.id,r.title||r.name,id)).join('')}`;
+  const options=(rows,id,missing)=>`${id&&!rows.some(r=>r.id===id)?option(id,missing,id):''}${rows.map(r=>option(r.id,r.problemId?planLabel(config.plans||[],r.id):r.title||r.name,id)).join('')}`;
   const ds=config.domains||[],ps=(config.problems||[]).filter(x=>x.domainId===p.domainId),qs=(config.plans||[]).filter(x=>x.domainId===p.domainId&&x.problemId===p.problemId);
   html+=`<label>领域<select name="domainId" aria-label="领域">${options(ds,p.domainId,'原领域已变化')}</select></label><label>关联问题（可选）<select name="problemId" aria-label="关联问题"><option value="">自由推进</option>${options(ps,p.problemId,'原问题已变化')}</select></label><label>方案（可选）<select name="planId" aria-label="方案"><option value="">不关联方案</option>${options(qs,p.planId,'原方案已变化')}</select></label><label>做了什么<input name="title" aria-label="计时内容" maxlength="300" value="${escape(p.title)}"></label><p class="hint">原始用时 ${durationLabel(p.durationMs||0)} · 按实际时段分配到每天</p><details><summary>原始时段 · ${(p.segments||[]).length} 段</summary><div class="capture-time-segments">${(p.segments||[]).slice(0,20).map(r=>`${escape(new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(r.start)))} — ${escape(new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(r.end)))}`).join('<br>')}${(p.segments||[]).length>20?'<br>更多时段保留在原始记录中':''}</div></details><input type="hidden" name="focusSegments" value="${escape(JSON.stringify(p.segments||[]))}"><input type="hidden" name="focusDuration" value="${escape(p.durationMs)}"><details ${p.adjustedDurationMs!==undefined?'open':''}><summary>修正用时（可选）</summary><label>分钟<input name="adjustedMinutes" aria-label="修正用时（分钟）" type="number" min="0" max="1440" step="any" value="${escape(p.adjustedDurationMs===undefined?'':p.adjustedDurationMs/60000)}"></label><small>留空保留原始时段；填写后按所选日期补记，原始计时仍保留。</small></details><label>推进记录（可选）<textarea name="note" aria-label="计时进展" maxlength="100000">${escape(p.note)}</textarea></label>`;
  }
@@ -23,8 +24,8 @@ export function fields(kind,p={},config){
   else {
    const ps=(config.problems||[]).filter(x=>x.domainId===did),pid=p.problemId||(kind==='plan'?ps[0]?.id:'');
    html+=`<label>${kind==='plan'?'所属问题':'关联问题（可选）'}<select name="problemId" aria-label="关联问题" ${kind==='plan'?'required':''}>${kind==='plan'?'':'<option value="">领域进展</option>'}${ps.map(x=>option(x.id,x.title,pid)).join('')}</select></label>`;
-   if(kind==='plan')html+=`<label>解决方案<input name="title" aria-label="解决方案" value="${escape(p.title)}" maxlength="300" required></label><label>说明（可选）<textarea name="body" aria-label="方案说明" maxlength="100000">${escape(p.body)}</textarea></label>`;
-   else html+=`<label>方案（可选）<select name="planId" aria-label="方案"><option value="">问题或领域的整体进展</option>${(config.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid).map(q=>option(q.id,q.title,p.planId)).join('')}</select></label><label>进展<textarea name="body" aria-label="进展" maxlength="100000" required>${escape(p.body)}</textarea></label>`;
+   if(kind==='plan')html+=`<label>上级路径<select name="parentId" aria-label="上级路径"><option value="">主问题</option>${p.parentId&&!(config.plans||[]).some(q=>q.id===p.parentId)?option(p.parentId,'原上级路径已变化',p.parentId):''}${(config.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid).map(q=>option(q.id,planLabel(config.plans||[],q.id),p.parentId)).join('')}</select></label><label>类型<select name="nodeType"><option value="solution">解决方案</option><option value="question" ${p.nodeType==='question'?'selected':''}>遇到的子问题</option></select></label><label>解决方案<input name="title" aria-label="解决方案" value="${escape(p.title)}" maxlength="300" required></label><label>说明（可选）<textarea name="body" aria-label="方案说明" maxlength="100000">${escape(p.body)}</textarea></label>`;
+   else html+=`<label>方案（可选）<select name="planId" aria-label="方案"><option value="">问题或领域的整体进展</option>${(config.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid).map(q=>option(q.id,planLabel(config.plans||[],q.id),p.planId)).join('')}</select></label><label>进展<textarea name="body" aria-label="进展" maxlength="100000" required>${escape(p.body)}</textarea></label>`;
   }
  }
  if(['task','taskPlan','expense'].includes(kind))html+=`<label>${kind==='expense'?'消费内容':'任务内容'}<input name="title" aria-label="内容" maxlength="120" value="${escape(p.title)}" placeholder="${kind==='expense'?'例如：午餐':'准备做些什么'}" required></label>`;
@@ -54,7 +55,7 @@ export function payload(form,kind){
  if(['problem','progress','plan'].includes(kind)){
   p.domainId=s('domainId');p.body=s('body');
   if(kind==='problem'){p.title=s('title').trim();p.next=s('next');}
-  else {p.problemId=s('problemId')||null;if(kind==='plan')p.title=s('title').trim();else if(s('planId'))p.planId=s('planId');}
+  else {p.problemId=s('problemId')||null;if(kind==='plan'){p.title=s('title').trim();if(s('parentId'))p.parentId=s('parentId');if(s('nodeType')==='question')p.nodeType='question';}else if(s('planId'))p.planId=s('planId');}
  }
  if(['task','taskPlan','expense'].includes(kind))p.title=s('title').trim();
  if(kind==='taskPlan'){const plan=taskPlan({schedule:s('schedule'),scheduledDate:s('scheduledDate'),deadline:s('deadline'),deadlineTime:s('deadlineTime')});p.schedule=plan.schedule;if(plan.date)p.scheduledDate=plan.date;if(plan.deadline)p.deadline=plan.deadline;if(plan.deadlineTime)p.deadlineTime=plan.deadlineTime;}
@@ -75,10 +76,10 @@ export function payload(form,kind){
 }
 export function summary(s,config){
  const p=s.payload;
- if(s.kind==='focus')return `${config.domains?.find(d=>d.id===p.domainId)?.name||'原领域已变化'} · ${durationLabel(p.adjustedDurationMs??p.durationMs)}${p.title?' · '+p.title:''}${p.planId?'\n方案：'+(config.plans?.find(q=>q.id===p.planId)?.title||'原方案已变化'):''}${p.note?'\n'+p.note:''}`;
+ if(s.kind==='focus')return `${config.domains?.find(d=>d.id===p.domainId)?.name||'原领域已变化'} · ${durationLabel(p.adjustedDurationMs??p.durationMs)}${p.title?' · '+p.title:''}${p.planId?'\n方案：'+(planLabel(config.plans||[],p.planId)||'原方案已变化'):''}${p.note?'\n'+p.note:''}`;
  if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'非必要',undecided:'待判断'}[p.necessity]}${p.allocation?' · 长期使用 '+p.allocation.startDate+' — '+p.allocation.expectedEndDate:''}`;
  if(s.kind==='taskPlan')return `${p.title} · ${p.schedule==='day'?'安排 '+p.scheduledDate:p.schedule==='deadline'?'截至 '+p.deadline+(p.deadlineTime?' '+p.deadlineTime:''):'近期完成'}`;
  if(s.kind==='habit')return `${config.habits.find(h=>h.id===p.habitId)?.name||'习惯'} · ${p.kind==='check'?(p.checked?'已完成':'未完成'):p.kind==='number'?p.value+'（当日总数）':Object.values(p.items).filter(Boolean).length+' 项已勾选'}`;
- if(['problem','progress','plan'].includes(s.kind))return `${config.domains?.find(d=>d.id===p.domainId)?.name||'领域已变更'} · ${p.title||p.body}${p.next?'\n下一步：'+p.next:''}${p.planId?'\n方案：'+(config.plans?.find(q=>q.id===p.planId)?.title||'原方案已变化'):''}`;
+ if(['problem','progress','plan'].includes(s.kind))return `${config.domains?.find(d=>d.id===p.domainId)?.name||'领域已变更'} · ${p.title||p.body}${s.kind==='plan'?('\n'+(p.nodeType==='question'?'子问题':'解决方案')+' · 上级：'+(p.parentId?(planLabel(config.plans||[],p.parentId)||'原上级路径已变化'):'主问题')):''}${p.next?'\n下一步：'+p.next:''}${p.planId?'\n方案：'+(planLabel(config.plans||[],p.planId)||'原方案已变化'):''}`;
  return p.title||p.text||p.body;
 }
