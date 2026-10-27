@@ -188,8 +188,12 @@ def handler(repo, backup=None, mobile=None):
                     revision = repo.save(space, data['revision'], state)
                     return self.send({'revision': revision, 'state': state})
                 if path == '/api/state':
-                    revision = repo.save(space, data['revision'], validate(data['state']))
-                    return self.send({'revision': revision})
+                    state=validate(data['state'])
+                    if state.get('advancement') is not None:
+                        from advancement_folders import synchronize
+                        synchronize(state)
+                    revision = repo.save(space, data['revision'], validate(state))
+                    return self.send({'revision': revision, 'state': state})
                 if path == '/api/restore':
                     state = validate(upgrade(repo.snapshot(space, int(data['id']))))
                     revision = repo.save(space, data['revision'], state)

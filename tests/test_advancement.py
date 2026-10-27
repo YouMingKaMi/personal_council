@@ -193,5 +193,51 @@ class AdvancementTest(unittest.TestCase):
   with self.assertRaises(ValueError):validate(bad)
   bad=copy.deepcopy(s);bad['advancement']['issues'][0]['domainId']='missing'
   with self.assertRaises(ValueError):validate(bad)
+ def test_new_domain_creates_child_and_old_parent_payload_is_compatible(self):
+  s=self.call('domain',folderId='science',name='自动化');a=s['advancement'];d=next(d for d in a['domains'] if d['name']=='自动化')
+  f=next(f for f in s['folders'] if f['id']==d['folderId']);self.assertEqual(f['parent'],'science');self.assertNotEqual(f['id'],'science')
+  s=self.call('domain',folderId='science',name='自动化');self.assertEqual(len(s['advancement']['domains']),3)
+  self.assertEqual(sum(f['parent']=='science' and f['name']=='自动化' for f in s['folders']),1)
+  s=self.call('domain',parentId='science',name='英语');english=next(d for d in s['advancement']['domains'] if d['name']=='英语')
+  s=self.call('domain',id=english['id'],name='英语学习');self.assertEqual(next(f for f in s['folders'] if f['id']==english['folderId'])['name'],'英语学习')
+  self.call('domain',id=english['id'],archived=True)
+  with self.assertRaises(ValueError):self.call('domain',parentId='science',name='英语学习')
+  with self.assertRaises(ValueError):self.call('domain',folderId='science',name='')
+ def test_legacy_root_alias_repair_preserves_identity_and_all_records(self):
+  self.problem();self.call('manual',domainId='ai-field',date='2027-01-15',durationMs=60000)
+  v=self.repo.read('main');s=v['state'];a=s['advancement'];a['domains'].append({'id':'science','folderId':'science','name':'自动化','goal':'保留目标','focusId':'old-problem','archived':False})
+  p=copy.deepcopy(a['issues'][0]);p.update(id='old-problem',domainId='science');a['issues'].append(p)
+  q={'id':'old-plan','domainId':'science','problemId':'old-problem','title':'原方案','body':'原说明','status':'active','deleted':False,'date':'2027-01-15'};a['plans'].append(q)
+  t=copy.deepcopy(a['sessions'][0]);t.update(id='old-time',domainId='science',problemId='old-problem',planId='old-plan');a['sessions'].append(t)
+  a['updates'].append({'id':'old-update','domainId':'science','problemId':'old-problem','planId':'old-plan','date':'2027-01-15','body':'保留原进展','createdAt':'2027-01-15T00:00:00Z'})
+  a['workbench']={'focusDomainIds':['science'],'temporaryDate':None,'temporaryDomainIds':[]}
+  before=copy.deepcopy(s);self.repo.save('main',v['revision'],validate(s));s=self.call('sync-folders')
+  fixed=next(d for d in s['advancement']['domains'] if d['id']=='science');self.assertNotEqual(fixed['folderId'],'science');self.assertEqual(fixed['name'],'自动化');self.assertEqual(fixed['goal'],'保留目标')
+  for key in ('issues','plans','updates','sessions','workbench'):self.assertEqual(s['advancement'][key],before['advancement'][key])
+  self.assertEqual(next(f for f in s['folders'] if f['id']=='science')['name'],'中科院')
+  count=len(s['folders']);s=self.call('reconcile');self.assertEqual(len(s['folders']),count)
+  bundle=self.path/'linked.zip';create_bundle(self.repo.db,bundle);restore(bundle,self.path/'linked-restored');self.assertEqual(Repository(self.path/'linked-restored').read('main')['state'],s)
+ def test_folder_api_returns_linked_state_and_renames_sync_both_directions(self):
+  from http.server import ThreadingHTTPServer
+  from urllib.request import Request,urlopen
+  from urllib.error import HTTPError
+  from server import handler
+  server=ThreadingHTTPServer(('127.0.0.1',0),handler(self.repo));thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+  def save(v):
+   request=Request(f'http://127.0.0.1:{server.server_port}/api/state',data=json.dumps(v).encode(),headers={'Content-Type':'application/json','X-Personal-Client':'1'})
+   with urlopen(request) as response:return json.load(response)
+  try:
+   v=self.repo.read('main');old=copy.deepcopy(v);v['state']['folders'].append({'id':'new-folder','name':'新领域','parent':'science','fields':[]})
+   response=save(v);d=next(d for d in response['state']['advancement']['domains'] if d['folderId']=='new-folder')
+   self.assertEqual(response,self.repo.read('main'))
+   with self.assertRaises(HTTPError) as conflict:save(old)
+   self.assertEqual(conflict.exception.code,409)
+   next(f for f in response['state']['folders'] if f['id']=='new-folder')['name']='从文件夹改名'
+   response=save(response);self.assertEqual(next(x for x in response['state']['advancement']['domains'] if x['id']==d['id'])['name'],'从文件夹改名')
+   s=self.call('domain',id=d['id'],name='从推进台改名');self.assertEqual(next(f for f in s['folders'] if f['id']=='new-folder')['name'],'从推进台改名')
+   s=self.call('domain',id=d['id'],archived=True)
+   v=self.repo.read('main');response=save(v);self.assertTrue(next(x for x in response['state']['advancement']['domains'] if x['id']==d['id'])['archived'])
+   self.assertEqual(sum(x['folderId']=='new-folder' for x in response['state']['advancement']['domains']),1)
+  finally:server.shutdown();server.server_close();thread.join()
 
 if __name__=='__main__':unittest.main()

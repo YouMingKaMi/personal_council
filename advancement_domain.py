@@ -55,6 +55,9 @@ def validate_advancement(state):
         if w.get('temporaryDate') is not None:day(w['temporaryDate'])
         elif w['temporaryDomainIds']:raise ValueError('临时领域缺少日期')
     folders={f['id'] for f in state['folders']};notes={n['id'] for n in state['notes']}
+    if a.get('scienceRootId') is not None:
+        ident(a['scienceRootId'])
+        if a['scienceRootId'] not in folders:raise ValueError('中科院资料空间不存在')
     for d in domains.values():
         text(d.get('name'),80,True);text(d.get('goal'),2000)
         if d.get('folderId') is not None and d['folderId'] not in folders:raise ValueError('关联领域不存在')

@@ -99,3 +99,7 @@ dashboard-layout.js 只操作当前 dashboard 的展示位置：使用现有 gri
 ## 工作台专注领域
 可选 `advancement.workbench={focusDomainIds,temporaryDate,temporaryDomainIds}`，旧状态缺省无常驻选择，schemaVersion 和 advancement.version 不变。`workbench-focus` 命令只替换常驻 IDs，必须携带旧列表 expected，防旧设置窗口覆盖；`workbench-select` 对同一天临时 IDs 做事务内去重合并，换日替换临时日期与列表。均不改 domains.archived／问题／方案／sessions。手机仍能选择全部启用领域，不受工作台偏好过滤，v1 录入契约无变更。
 `workbenchDomains` 合并常驻、当日选择、当日有效计时与 active，跨日按实际片段；取消／移除排除，历史总和不按偏好过滤。左侧可从“其他领域”临时切换，不自动提升为常驻。刷新保持设置，跨上海午夜自动重绘，时间条随计时更新。完整数据库／JSON 备份保留设置；旧程序可忽略这项展示偏好，回退程序不删除数据。检查覆盖旧状态、增减、临时过期、跨日、补记、取消、归档、并发设置冲突、幂等、手机配置不受影响及备份恢复。
+
+## 领域／文件夹关联
+`advancement_folders.py` 在推进命令事务与正常 `/api/state` 保存时统一关联。`folderId` 是既有资料夹，新增可选 `parentId` 表示在此处创建／复用同名普通子夹；旧 `folderId=中科院` 加新领域名的请求仍按创建子夹处理。已有关联不重复创建，同名已收起领域不会自动恢复。可选 `advancement.scienceRootId` 固定中科院位置（含后续根改名）；其普通直接子夹导入为领域，资料下级子夹不展开成新领域。领域 ID 与 folderId 不要求相同，旧 root-ID 误关联修复只换 folderId，保留所有领域引用与其他集合；歧义关联报错，不合并历史。领域改名更新关联夹，文件夹改名更新展示名称，收起领域不删文件夹。旧独立领域不自动搬迁；新建默认具有资料夹。
+常规状态保存返回服务端规范化后的 state，store.change 采用该响应，防下一次编辑遗失刚同步的领域。revision CAS、手机入库事务与旧 v1 字段含义保持不变；恢复／导入原始备份不偷偷改写，下一次正常打开时建立关联。folderProgress 直接读同一 advancement 记录并通过稳定 ID 导航，无正文复制到 notes。仅有推进内容的部门也作为常用空间显示。检查含旧误关联修复、ID／历史不变、重试不重复、新建与双向改名、状态响应与冲突、归档保护、备份恢复、资料夹分区的安全渲染与浏览器两向创建／导航。

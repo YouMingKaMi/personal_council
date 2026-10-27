@@ -4,11 +4,12 @@ import json
 import time
 import uuid
 from advancement_domain import ident,text,day,number
+from advancement_folders import new_domain,rename_domain,synchronize
 
 
 def empty(state):
     roots={f['id'] for f in state['folders'] if f['name']=='中科院'}
-    folders=[f for f in state['folders'] if f.get('parent') in roots]
+    folders=[f for f in state['folders'] if f.get('parent') in roots and not f.get('module')]
     return {'version':1,'domains':[{'id':f['id'],'folderId':f['id'],'name':f['name'],'goal':'','focusId':None,'archived':False} for f in folders],
             'issues':[],'plans':[],'updates':[],'sessions':[],'active':None,'commands':[]}
 
@@ -95,7 +96,7 @@ def add_update(state,p,id,at):
 
 def mutate(state,c,now):
     a=state.setdefault('advancement',empty(state));op=c.get('op');at=stamp(now)
-    if op=='init' or op=='reconcile':return
+    if op in ('init','reconcile','sync-folders'):return
     if op in ('workbench-focus','workbench-select'):
         w=a.setdefault('workbench',{'focusDomainIds':[],'temporaryDate':None,'temporaryDomainIds':[]})
         if op=='workbench-focus':
@@ -125,16 +126,13 @@ def mutate(state,c,now):
         old=next((d for d in a['domains'] if d['id']==c.get('id')),None)
         if old:
             if 'goal' in c:old['goal']=text(c['goal'],2000)
-            if 'name' in c:old['name']=text(c['name'],80,True).strip()
+            if 'name' in c:rename_domain(state,old,c['name'])
             if 'archived' in c:
                 if type(c['archived']) is not bool:raise ValueError('领域状态无效')
                 if a['active'] and a['active']['domainId']==old['id']:raise ValueError('请先结束该领域的计时')
                 old['archived']=c['archived']
         else:
-            folder=c.get('folderId') or None;f=next((x for x in state['folders'] if x['id']==folder),None)
-            if folder and not f:raise ValueError('资料空间不存在')
-            if folder and any(d['folderId']==folder for d in a['domains']):raise ValueError('这个资料空间已关联领域')
-            a['domains'].append({'id':folder or str(uuid.uuid4()),'folderId':folder,'name':text(c.get('name') or (f or {}).get('name'),80,True).strip(),'goal':'','focusId':None,'archived':False})
+            new_domain(state,c)
     elif op=='problem-add':add_issue(state,c,c.get('id') or str(uuid.uuid4()),at)
     elif op=='plan-add':add_plan(state,c,c.get('id') or str(uuid.uuid4()),at)
     elif op=='plan-from-update':
@@ -261,9 +259,11 @@ def command(repo,space,c,clock=None):
         state=json.loads(body);a=state.setdefault('advancement',empty(state));before=json.dumps(state,ensure_ascii=False,sort_keys=True)
         initialized='advancement' not in json.loads(body)
         reconcile(a,now)
+        synchronize(state)
         if request not in a['commands']:
             mutate(state,c,now)
             if request:a['commands']=(a['commands']+[request])[-2000:]
+        synchronize(state)
         validate(state)
         if initialized or json.dumps(state,ensure_ascii=False,sort_keys=True)!=before:
             # Heartbeats are durable, but should not evict useful user-change snapshots.
