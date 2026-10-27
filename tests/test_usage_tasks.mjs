@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict';
-import {allocatedRows,usageInfo,expectedEnd,validateAllocation} from '../static/expense-allocation.js';
+import {allocatedRows,usageInfo,usageToDate,expectedEnd,validateAllocation} from '../static/expense-allocation.js';
 import {emptyExpenses,saveEntry,summary,dailyTrend,dayTotal,removeEntry,restoreEntry,csv} from '../static/expenses-model.js';
 import {taskVisible,taskRequired,taskPlan,toggleTask,taskRecordDate,taskLabel,backlogTasks} from '../static/task-model.js';
 import {taskMonth} from '../static/task-history.js';
 import {fields,payload} from '../static/capture-form.js';
 const e={id:'long',title:'话费',amountCents:10000,date:'2024-01-01',kind:'expense',categoryId:'food',necessity:'necessary',deleted:false,refundOf:null,subscriptionId:null,billedOccurrence:null,createdAt:'2024-01-01T00:00:00Z',updatedAt:'2024-01-01T00:00:00Z',allocation:{startDate:'2024-01-01',expectedEndDate:'2024-02-29'}};
 const s={expenses:emptyExpenses()};saveEntry(s,e);
+assert.equal(usageToDate(e,[e],'2024-01-01').daily,10000);
+assert.equal(usageToDate(e,[e],'2024-01-10').daily,1000);
+assert.equal(usageToDate(e,[e],'2024-02-29').days,60);
+assert.equal(usageToDate(e,[e],'2024-03-01').days,61); // Usage keeps growing beyond the estimate.
+assert.equal(usageToDate(e,[e],'2023-12-31').daily,null);
+const refundedUsage=[e,{id:'refund',kind:'refund',refundOf:e.id,date:'2024-01-05',amountCents:2000,deleted:false}];
+assert.equal(usageToDate(e,refundedUsage,'2024-01-04').net,10000);
+assert.equal(usageToDate(e,refundedUsage,'2024-01-05').net,8000);
+const settledUsage={...e,allocation:{...e.allocation,endDate:'2024-01-10',resaleCents:3000}};
+assert.equal(usageToDate(settledUsage,[settledUsage],'2024-02-10').daily,700);
+assert.equal(usageToDate(settledUsage,[settledUsage],'2024-01-09').net,10000);
+assert.equal(usageToDate(settledUsage,[settledUsage],'2024-02-10').days,10);
+const singleDay={...e,allocation:{...e.allocation,endDate:e.allocation.startDate,resaleCents:12000}};
+assert.equal(usageToDate(singleDay,[singleDay],'2024-02-10').daily,-2000);
+
 assert.equal(summary(s,'2024-01').total,10000);assert.equal(summary(s,'2024-02').total,0);
 assert.equal(summary(s,'2024-01',{basis:'usage'}).total,5166);assert.equal(summary(s,'2024-02',{basis:'usage'}).total,4834);
 assert.equal(summary(s,'2024-01',{basis:'usage',asOf:'2024-01-10'}).total,1666);
@@ -49,7 +64,7 @@ globalThis.localStorage={getItem(){return null;}};
 const {createExpenses}=await import('../static/expenses-feature.js');
 const feature=createExpenses({state:()=>s,date:()=>e.date,space:()=> 'main',render(){}});
 await feature.action('expense-mode',{dataset:{mode:'usage'}});
-assert.match(feature.page(),/平均每天/);assert.match(feature.page(),/调整结算/);assert.doesNotMatch(feature.page(),/id="expense-search"/);
+assert.match(feature.page(),/当下平均每天/);assert.doesNotMatch(feature.page(),/\d{4}-\d{2} 分摊/);assert.match(feature.page(),/调整结算/);assert.doesNotMatch(feature.page(),/id="expense-search"/);
 await feature.action('expense-mode',{dataset:{mode:'analysis'}});
 assert.match(feature.page(),/消费统计口径/);assert.match(feature.page(),/每日付款趋势/);
 feature.change({id:'expense-basis',value:'usage',closest(){return null;}});
