@@ -67,6 +67,11 @@ class AdvancementPathsTest(unittest.TestCase):
   self.call('update',id='u',domainId='ai-field',problemId='problem-1',planId='root',date='2027-01-15',body='可以试另一种方法')
   s=self.call('plan-from-update',updateId='u',parentId='root',attachRecord=True,nodeType='question')
   q=s['advancement']['plans'][-1];self.assertEqual(s['advancement']['updates'][-1]['planId'],q['id']);self.assertEqual(q['parentId'],'root')
+  from cloud_backup import create_bundle
+  from recovery import restore
+  from repository import Repository
+  bundle=self.path/'hierarchy.zip';create_bundle(self.repo.db,bundle);restore(bundle,self.path/'hierarchy-restore')
+  self.assertEqual(Repository(self.path/'hierarchy-restore').read('main')['state'],s)
  def test_relay_nested_config_and_static_path_module(self):
   import threading,urllib.request
   from capture_relay import Relay,make_server
