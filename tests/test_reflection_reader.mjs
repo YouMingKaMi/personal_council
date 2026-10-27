@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createReflection} from '../static/reflection-feature.js';
+const note=(id,date,body,tags=[])=>({id,folder:'thoughts',date,title:'文章 '+id,body,tags,status:'done'});
+const s={folders:[{id:'thoughts',name:'个人思考',module:'reflection',parent:null},{id:'child',name:'素材',parent:'thoughts'}],notes:[note('old','2026-10-01','旧文原文',['学习']),note('new','2026-10-27','# 内容标题\n这是一篇新文。\n<script>alert(1)</script>',['思考']),{...note('trash','2026-10-28','已移除'),trashed:true},{...note('archive','2026-10-29','仅原文'),readOnlyArchive:true},{...note('material','2026-10-02','素材原文'),folder:'child'}]};
+const before=structuredClone(s),results={innerHTML:''},library={scrollTop:120};let revealed=0,opened;
+globalThis.document={querySelector(q){return q==='#thought-results'?results:q==='.thought-library'?library:q==='.thought-reader'?{scrollIntoView(){revealed++;}}:null;}};
+const f=createReflection({state:()=>s,view:()=>({page:'reflection',id:'thoughts'}),space:()=> 'main',folder:()=>s.folders[0],heading:()=>'',manage:()=>'',render(){},openNote(id,write){opened={id,write};}});
+let html=f.page();assert.equal(f.snapshot().selected,'new');assert.match(html,/thought-reader-body/);assert.match(html,/<h2>文章 new<\/h2>/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);assert.doesNotMatch(html,/data-id="trash"|data-id="archive"/);
+f.action('thought-select',{dataset:{id:'old'}});assert.match(results.innerHTML,/<h2>文章 old<\/h2>/);assert.equal(library.scrollTop,120);assert.equal(revealed,1);
+const saved=f.snapshot();f.action('thought-edit',{dataset:{id:'old'}});assert.deepEqual(opened,{id:'old',write:true});
+f.action('thought-tag',{dataset:{tag:'思考'}});assert.equal(f.snapshot().selected,'new');assert.doesNotMatch(results.innerHTML,/data-action="thought-select" data-id="old"/);
+f.action('thought-tag',{dataset:{tag:'missing'}});assert.equal(f.snapshot().selected,'');assert.match(results.innerHTML,/没有匹配的文章/);
+f.restore(saved);assert.match(f.page(),/<h2>文章 old<\/h2>/);assert.equal(f.snapshot().selected,'old');
+f.action('thought-select',{dataset:{id:'trash'}});assert.equal(f.snapshot().selected,'old');
+f.enter('child');html=f.page();assert.match(html,/<h2>文章 material<\/h2>/);assert.doesNotMatch(html,/data-action="thought-select" data-id="new"/);
+assert.deepEqual(s,before);console.log('Reflection reader: selection, filtering, original Markdown safety, history restore, subfolders and zero note mutations passed');
