@@ -8,12 +8,13 @@ import math
 import re
 
 KINDS = {'expense': '花销', 'task': '每日任务', 'chronicle': '编年史',
-         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案'}
+         'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案', 'focus':'推进计时'}
 FIELDS = {
     'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity'},
     'problem': {'date','domainId','title','body','next'},
     'progress': {'date','domainId','problemId','planId','body'},
     'plan': {'date','domainId','problemId','title','body'},
+    'focus': {'date','domainId','problemId','planId','title','note','segments','durationMs','adjustedDurationMs'},
     'task': {'date', 'title'}, 'chronicle': {'date', 'text', 'endDate'},
     'ideas': {'date', 'body'}, 'materials': {'date', 'body'},
     'habit': {'date', 'habitId', 'versionId', 'kind', 'value', 'checked', 'items'},
@@ -38,6 +39,26 @@ def identifier(value):
         raise ValueError('标识无效')
     return value
 
+def focus_payload(p,submitted_at):
+    identifier(p.get('domainId'))
+    if p.get('problemId') is not None:identifier(p['problemId'])
+    if p.get('planId') is not None:identifier(p['planId']);identifier(p.get('problemId'))
+    for key,limit in [('title',300),('note',100000)]:
+        if not isinstance(p.get(key,''),str) or len(p.get(key,''))>limit:raise ValueError('计时说明无效')
+    rows=p.get('segments')
+    if not isinstance(rows,list) or not 1<=len(rows)<=1000:raise ValueError('计时片段为空或过多')
+    previous=0;duration=0
+    for row in rows:
+        if not isinstance(row,dict) or set(row)!={'start','end'}:raise ValueError('计时片段格式无效')
+        start,end=row['start'],row['end']
+        if any(type(n) is not int or not 0<=n<=7258118400000 for n in (start,end)) or end<=start or start<previous:raise ValueError('计时时间无效、倒序或重叠')
+        duration+=end-start;previous=end
+    if type(p.get('durationMs')) is not int or p['durationMs']!=duration or not 0<duration<=30*86400000:raise ValueError('计时合计不一致或超过 30 天，请检查')
+    if previous>submitted_at.timestamp()*1000+300000:raise ValueError('计时结束晚于提交时间，请检查设备时间')
+    if 'adjustedDurationMs' in p and (type(p['adjustedDurationMs']) is not int or not 0<=p['adjustedDurationMs']<=86400000):raise ValueError('修正时长须为 0—24 小时')
+    start_day=dt.datetime.fromtimestamp(rows[0]['start']/1000,dt.timezone(dt.timedelta(hours=8))).date().isoformat()
+    if p['date']!=start_day and 'adjustedDurationMs' not in p:raise ValueError('计时日期须与实际开始日期一致')
+
 def envelope(value):
     if not isinstance(value, dict) or set(value) != {'version', 'id', 'kind', 'createdAt', 'payload'}:
         raise ValueError('提交格式不兼容，原稿仍保留，请更新页面')
@@ -53,6 +74,7 @@ def envelope(value):
     if kind not in KINDS or not isinstance(p, dict) or set(p) - FIELDS[kind]:
         raise ValueError('功能或字段不兼容，不能忽略未知字段')
     day(p.get('date'))
+    if kind=='focus':focus_payload(p,stamp)
     if kind in ('problem','progress','plan'):
         identifier(p.get('domainId'))
         if kind in ('problem','plan'):
@@ -124,18 +146,22 @@ def form_config(state):
     fields=[{'id':d['id'],'name':d['name']} for d in advancement.get('domains',[]) if not d['archived']]
     field_ids={d['id'] for d in fields}
     if not fields:
-        kinds={k:v for k,v in kinds.items() if k not in ('problem','progress','plan')}
+        kinds={k:v for k,v in kinds.items() if k not in ('problem','progress','plan','focus')}
     problems=[{k:p[k] for k in ('id','domainId','title')} for p in advancement.get('issues',[]) if p['domainId'] in field_ids and not p['deleted'] and p['status'] in ('open','active')]
     problem_ids={p['id'] for p in problems}
     plans=[{k:q[k] for k in ('id','domainId','problemId','title')} for q in advancement.get('plans',[]) if q['problemId'] in problem_ids and not q['deleted'] and q['status'] in ('open','active')]
-    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems, 'plans':plans} if 'advancement' in state else {})}
+    focused=[id for id in advancement.get('workbench',{}).get('focusDomainIds',[]) if id in field_ids]
+    return {'version': 1, 'kinds': kinds, 'categories': active, 'habits': habits, **({'domains':fields, 'problems':problems, 'plans':plans,'focusDomainIds':focused} if 'advancement' in state else {})}
 
 def apply_capture(state, submission):
     from domain import validate
     envelope(submission)
     kind, p = submission['kind'], submission['payload']
     record_id, stamp = 'mobile-' + submission['id'], now()
-    if kind in ('problem','progress','plan'):
+    if kind=='focus':
+        from mobile_timer import import_timer
+        import_timer(state,p,record_id,stamp)
+    elif kind in ('problem','progress','plan'):
         from advancement_service import add_issue,add_update,add_plan
         if kind=='problem':add_issue(state,p,record_id,stamp)
         elif kind=='plan':add_plan(state,p,record_id,stamp)

@@ -114,11 +114,13 @@ def handler(relay):
                 if path=='/api/submit' and post: return self.send(relay.receive(data))
                 with relay.connect() as c:
                     if path=='/bridge/config' and post:
-                        if not isinstance(data,dict) or data.get('version')!=1 or not {'version','kinds','categories','habits'}<=set(data)<= {'version','kinds','categories','habits','domains','problems','plans'}:
+                        if not isinstance(data,dict) or data.get('version')!=1 or not {'version','kinds','categories','habits'}<=set(data)<= {'version','kinds','categories','habits','domains','problems','plans','focusDomainIds'}:
                             raise ValueError('表单配置不兼容')
                         for field,keys in [('domains',{'id','name'}),('problems',{'id','domainId','title'}),('plans',{'id','domainId','problemId','title'})]:
                             rows=data.get(field,[])
                             if not isinstance(rows,list) or len(rows)>20000 or any(not isinstance(r,dict) or set(r)!=keys or any(not isinstance(v,str) for v in r.values()) for r in rows):raise ValueError('推进表单配置无效')
+                        ids=data.get('focusDomainIds',[])
+                        if not isinstance(ids,list) or any(not isinstance(id,str) for id in ids) or len(set(ids))!=len(ids) or set(ids)-{d['id'] for d in data.get('domains',[])}:raise ValueError('专注领域配置无效')
                         c.execute('INSERT OR REPLACE INTO config VALUES (1,?)',(canonical(data),))
                         return self.send({'ok':True})
                     if path=='/api/config' and not post:
@@ -139,6 +141,7 @@ def handler(relay):
             if post: return self.send({'error':'接口不存在'},404)
             files={'/':'mobile/index.html','/sw.js':'mobile/sw.js','/mobile/app.js':'mobile/app.js',
                    '/mobile/style.css':'mobile/style.css','/static/capture-form.js':'static/capture-form.js',
+                   '/mobile/timer-model.js':'mobile/timer-model.js','/mobile/timer-workbench.js':'mobile/timer-workbench.js',
                    '/static/favicon.ico':'static/favicon.ico','/static/icon-32.png':'static/icon-32.png',
                    '/static/icon-180.png':'static/icon-180.png'}
             if path not in files: return self.send({'error':'页面不存在'},404)

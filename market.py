@@ -53,8 +53,11 @@ def error_text(provider,error):
     if isinstance(error,ValueError):return provider+'返回的数据未通过校验，保留已有价格。'
     return provider+'暂时连接失败，保留已有价格。'
 
+def quote_ids(t):
+    return sorted({a.get('quoteId') for a in t['assets'] if a['category']=='crypto' and not a['archived'] and a.get('pricingMode')=='auto' and a.get('quoteId')})
+
 def fetch_market(t, now, fetch=fetch_json):
-    ids=sorted({a.get('quoteId') for a in t['assets'] if a['category']=='crypto' and not a['archived'] and a.get('pricingMode')=='auto' and a.get('quoteId')})
+    ids=quote_ids(t)
     result={'prices':{},'fx':{},'errors':[]}
     def coins():
         url='https://api.coingecko.com/api/v3/simple/price?'+urlencode({'ids':','.join(ids),'vs_currencies':'usd','include_last_updated_at':'true','precision':'12'})
@@ -113,16 +116,22 @@ class MarketService:
         from domain import validate
         with self.locks[space]:
             current=self.repo.read(space)
-            if current['revision']!=revision:raise Conflict('另一窗口已保存更新，请重新载入后重试。')
             now=dt.datetime.now(UTC);t=current['state']['treasury']
             if not due(t['market'],now,force):return dict(current,refreshed=False)
             result=fetch_market(t,now,self.fetch)
-            updated=merge_market(t['market'],result,now)
-            before=portfolio(t);t['market']=updated
-            if before['market']['prices']!=updated['prices'] or before['market']['fx']!=updated['fx']:
-                t['changes'].append({'id':str(uuid.uuid4()),'at':now.isoformat(),'label':'更新公开行情与汇率','before':before,'after':portfolio(t)})
-                t['changes']=t['changes'][-200:]
-            validate(current['state'])
-            # A concurrent edit wins: return a conflict instead of overwriting it.
-            current['revision']=self.repo.save(space,revision,current['state'])
-            return dict(current,refreshed=True)
+            policy=(t['market']['frequency'],quote_ids(t))
+            # No caller state is submitted here. Rebase only public quotes onto
+            # the latest saved data; keep ordinary edits protected by CAS.
+            for _ in range(3):
+                current=self.repo.read(space);t=current['state']['treasury']
+                if (t['market']['frequency'],quote_ids(t))!=policy:return dict(current,refreshed=False,conflict=True)
+                updated=merge_market(t['market'],result,now)
+                before=portfolio(t);t['market']=updated
+                if before['market']['prices']!=updated['prices'] or before['market']['fx']!=updated['fx']:
+                    t['changes'].append({'id':str(uuid.uuid4()),'at':now.isoformat(),'label':'更新公开行情与汇率','before':before,'after':portfolio(t)})
+                    t['changes']=t['changes'][-200:]
+                validate(current['state'])
+                try:current['revision']=self.repo.save(space,current['revision'],current['state'])
+                except Conflict:continue
+                return dict(current,refreshed=True)
+            raise Conflict('行情检查期间记录持续更新，已保留原数据，请稍后重试')

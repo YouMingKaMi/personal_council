@@ -235,7 +235,7 @@ async function refreshMarketUI(force=false){
   const result=await store.refreshMarket(force);
   marketCheckError=false;
   if(view.page==='treasury'&&!modal.open&&!editorDirty)render();
-  if(force)toast(result.refreshed?(S().treasury.market.errors.length?'部分行情未更新，已保留备用价格':'行情与汇率已更新'):'刚刚已检查，无需重复请求');
+  if(force)toast(result.conflict?'记录刚有更新，已载入最新数据，请再刷新行情':result.refreshed?(S().treasury.market.errors.length?'部分行情未更新，已保留备用价格':'行情与汇率已更新'):'刚刚已检查，无需重复请求');
  }catch(error){if(force||!marketCheckError)report(error);marketCheckError=true;}
 }
 setInterval(()=>refreshMarketUI(false),60000);

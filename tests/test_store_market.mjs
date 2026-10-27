@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+globalThis.sessionStorage={getItem:()=>null,setItem:()=>{}};
+let requests=[];
+globalThis.fetch=async(url,options)=>{requests.push({url,options});return {ok:true,status:200,json:async()=>({revision:3,state:{tasks:[{id:'initial'}]}})};};
+const store=await import('../static/store.js');await store.load();
+globalThis.fetch=async(url,options)=>{requests.push({url,options});return url.startsWith('/api/market')?{ok:false,status:409,json:async()=>({error:'concurrent edit'})}:{ok:true,status:200,json:async()=>({revision:9,state:{tasks:[{id:'latest-edit'}]}})};};
+const result=await store.refreshMarket(false);
+assert.equal(result.conflict,true);assert.equal(result.refreshed,false);assert.equal(store.revision,9);assert.equal(store.state.tasks[0].id,'latest-edit');assert.equal(store.busy,false);
+assert.ok(requests.at(-1).url.startsWith('/api/state'));
+globalThis.fetch=async()=>({ok:false,status:503,json:async()=>({error:'unavailable'})});
+await assert.rejects(()=>store.refreshMarket(),/unavailable/);assert.equal(store.revision,9);assert.equal(store.busy,false);
+console.log('Market client: conflict adopts latest state/revision, preserves real errors and releases busy state passed');
