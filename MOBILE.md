@@ -84,3 +84,5 @@ Mac 数据目录的 `mobile-bridge.json`（0600）含 `url`、`desktopToken`。�
 新增 taskPlan：payload.date 是录入日期（封套既有自然日语义），title、schedule（recent/day/deadline）；day 必须 scheduledDate，deadline 必须 deadline，可选 deadlineTime=HH:mm（北京时间）。recent 不填 scheduledDate/deadline/time，不把录入日期变成任务安排日。电脑转换为同一 task 的 schedule/date/deadline/deadlineTime，后续安排编辑不更换 ID。旧 task 仍仅 date/title，直接安排到该日，不接受改名或 null date。
 expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个字段完全不变。新增手机消费仅发送预计使用期，endDate/resaleCents 结算保留在电脑端办理，避免把旧消费覆盖成新消费。金额保持 amountCents 整数分，审核与总体验证均检查日期先后，不丢弃无效字段。已发送封套 ID 和内容冻结，升级 Service Worker 不清空草稿／队列／当前计时；旧离线数据继续接受。
 部署时除既有文件，还需 expense_allocation.py、task_domain.py、static/expense-allocation.js、static/expense-allocation-form.js、static/task-model.js。更新手机 app/style/sw、共享 capture-form、capture_contract 和静态白名单，保留服务器凭证及待处理数据库，更新后验证新三个 JS 均为 200。配置增加 taskPlan kind，不增加用户私人历史字段；电脑后台同步后发布最少录入配置。无远程审批权限扩张。
+
+手机界面将每日与近期合为单个“任务”入口，内选近期／具体日期／截止日期。新界面继续使用已支持的 taskPlan，不改旧 task 的 date 含义；旧 task 草稿、队列和回执保留，在缺少 taskPlan 配置时仍展示旧入口。optional 的显示名改为非必要，封套 necessity 值不变，旧手机发送 optional 仍以同一必要性确认入库。

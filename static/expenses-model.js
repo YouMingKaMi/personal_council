@@ -1,6 +1,6 @@
 import {validateAllocation,allocatedRows,resaleRows,allocationToday} from './expense-allocation.js';
 // Amounts are integer fen (CNY). No balance mutation, inference or automatic debits.
-export const necessities={necessary:'必要',optional:'可选',undecided:'待判断'};
+export const necessities={necessary:'必要',optional:'非必要',undecided:'待判断'};
 export const categoryDefaults=[['food','餐饮'],['living','居住与日用'],['transport','交通'],['health','健康'],['tools','学习与工具'],['leisure','娱乐与购物'],['social','人情'],['other','其他']];
 export const emptyExpenses=()=>({entries:[],categories:[...categoryDefaults.map(([id,name])=>({id,name,archived:false})),...foodSubcategories.map(([id,name,parentId])=>({id,name,parentId,archived:false}))],budgets:{},subscriptions:[]});
 export const ledger=s=>s.expenses||emptyExpenses();

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {allocatedRows,usageInfo,expectedEnd,validateAllocation} from '../static/expense-allocation.js';
 import {emptyExpenses,saveEntry,summary,dailyTrend,dayTotal,removeEntry,restoreEntry,csv} from '../static/expenses-model.js';
-import {taskVisible,taskRequired,taskPlan,toggleTask,taskRecordDate,taskLabel} from '../static/task-model.js';
+import {taskVisible,taskRequired,taskPlan,toggleTask,taskRecordDate,taskLabel,backlogTasks} from '../static/task-model.js';
 import {taskMonth} from '../static/task-history.js';
 import {fields,payload} from '../static/capture-form.js';
 const e={id:'long',title:'话费',amountCents:10000,date:'2024-01-01',kind:'expense',categoryId:'food',necessity:'necessary',deleted:false,refundOf:null,subscriptionId:null,billedOccurrence:null,createdAt:'2024-01-01T00:00:00Z',updatedAt:'2024-01-01T00:00:00Z',allocation:{startDate:'2024-01-01',expectedEndDate:'2024-02-29'}};
@@ -24,10 +24,10 @@ assert.equal(allocatedRows([huge],'2024-01').reduce((n,r)=>n+r.amountCents,0),99
 const profit={...e,allocation:{startDate:'2024-01-01',expectedEndDate:'2024-01-03',endDate:'2024-01-03',resaleCents:10001}};
 assert.deepEqual(allocatedRows([profit],'2024-01').map(r=>r.kind==='refund'?-r.amountCents:r.amountCents),[-1,0,0]);
 let t={id:'recent',title:'近期整理',done:false,...taskPlan({schedule:'recent'})};
-assert.equal(t.date,null);assert.equal(taskRequired(t,'2024-01-02'),false);assert.ok(taskVisible(t,'2024-01-02','2024-01-02'));assert.ok(!taskVisible(t,'2024-01-01','2024-01-02'));
+assert.equal(t.date,null);assert.equal(taskRequired(t,'2024-01-02'),false);assert.ok(!taskVisible(t,'2024-01-02','2024-01-02'));assert.equal(backlogTasks({tasks:[t]}).length,1);assert.ok(!taskVisible(t,'2024-01-01','2024-01-02'));
 assert.equal(taskLabel(t),'近期');toggleTask(t,'2024-01-02');assert.equal(taskRecordDate(t),'2024-01-02');assert.ok(!taskVisible(t,'2024-01-03','2024-01-03'));
-assert.equal(taskMonth({tasks:[t]},'2024-01').done,1);toggleTask(t,'2024-01-03');assert.equal(taskRecordDate(t),null);assert.ok(taskVisible(t,'2024-01-03','2024-01-03'));
-Object.assign(t,taskPlan({schedule:'deadline',deadline:'2024-01-05',deadlineTime:'18:30'}));assert.equal(taskLabel(t),'截至 2024-01-05 18:30');assert.equal(taskRequired(t,'2024-01-03'),false);assert.equal(taskRequired(t,'2024-01-05'),true);
+assert.equal(taskMonth({tasks:[t]},'2024-01').done,1);toggleTask(t,'2024-01-03');assert.equal(taskRecordDate(t),null);assert.ok(!taskVisible(t,'2024-01-03','2024-01-03'));assert.equal(backlogTasks({tasks:[t]}).length,1);
+Object.assign(t,taskPlan({schedule:'deadline',deadline:'2024-01-05',deadlineTime:'18:30'}));assert.equal(taskLabel(t),'截至 2024-01-05 18:30');assert.equal(taskRequired(t,'2024-01-03'),false);assert.equal(taskRequired(t,'2024-01-05'),false);
 Object.assign(t,taskPlan({schedule:'day',scheduledDate:'2024-01-04'}));assert.equal(t.deadline,null);assert.ok(taskVisible(t,'2024-01-04','2024-01-03'));
 assert.throws(()=>taskPlan({schedule:'day',scheduledDate:'2024-02-30'}));
 const config={categories:[{id:'food',name:'餐饮'}],habits:[]};

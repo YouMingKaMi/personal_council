@@ -7,7 +7,7 @@ import json
 import math
 import re
 
-KINDS = {'expense': '花销', 'task': '每日任务', 'taskPlan':'近期任务', 'chronicle': '编年史',
+KINDS = {'expense': '花销', 'task': '任务', 'taskPlan':'任务', 'chronicle': '编年史',
          'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案', 'focus':'推进计时'}
 FIELDS = {
     'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity', 'allocation'},

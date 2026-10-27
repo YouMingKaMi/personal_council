@@ -2,7 +2,7 @@ import {allocationFields,allocationFromForm,updateAllocationForm} from './expens
 import {taskPlanFields,taskPlan,updateTaskPlanFields} from './task-model.js';
 export {updateAllocationForm,updateTaskPlanFields};
 // Public v1 field names are stable. Both desktop approval and phone use this form adapter.
-export const names={expense:'花销',task:'每日任务',taskPlan:'近期任务',chronicle:'编年史',ideas:'想法',materials:'原料',habit:'习惯',problem:'新问题',progress:'推进进展',plan:'解决方案',focus:'推进计时'};
+export const names={expense:'花销',task:'任务',taskPlan:'任务',chronicle:'编年史',ideas:'想法',materials:'原料',habit:'习惯',problem:'新问题',progress:'推进进展',plan:'解决方案',focus:'推进计时'};
 export const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const option=(id,label,selected)=>`<option value="${escape(id)}" ${id===selected?'selected':''}>${escape(label)}</option>`;
@@ -28,7 +28,7 @@ export function fields(kind,p={},config){
   }
  }
  if(['task','taskPlan','expense'].includes(kind))html+=`<label>${kind==='expense'?'消费内容':'任务内容'}<input name="title" aria-label="内容" maxlength="120" value="${escape(p.title)}" placeholder="${kind==='expense'?'例如：午餐':'准备做些什么'}" required></label>`;
- if(kind==='expense')html+=`<label>金额 · 元<input name="amount" aria-label="金额" inputmode="decimal" autocomplete="off" value="${p.amountCents!==undefined?(p.amountCents/100).toFixed(2):''}" placeholder="0.00" required></label><label>用途<select name="categoryId" aria-label="用途">${config.categories.map(c=>option(c.id,c.name,p.categoryId||config.categories[0]?.id)).join('')}</select></label><label>必要性<select name="necessity" aria-label="必要性">${[['necessary','必要'],['optional','可选'],['undecided','待判断']].map(([id,n])=>option(id,n,p.necessity||'necessary')).join('')}</select></label>`;
+ if(kind==='expense')html+=`<label>金额 · 元<input name="amount" aria-label="金额" inputmode="decimal" autocomplete="off" value="${p.amountCents!==undefined?(p.amountCents/100).toFixed(2):''}" placeholder="0.00" required></label><label>用途<select name="categoryId" aria-label="用途">${config.categories.map(c=>option(c.id,c.name,p.categoryId||config.categories[0]?.id)).join('')}</select></label><label>必要性<select name="necessity" aria-label="必要性">${[['necessary','必要'],['optional','非必要'],['undecided','待判断']].map(([id,n])=>option(id,n,p.necessity||'necessary')).join('')}</select></label>`;
  if(kind==='expense')html+=allocationFields(p.allocation,date,p);
  if(kind==='taskPlan')html+=taskPlanFields({schedule:p.schedule||'recent',date:p.scheduledDate,deadline:p.deadline,deadlineTime:p.deadlineTime},date);
  if(['ideas','materials','chronicle'].includes(kind))html+=`<label class="body-field"><span>${kind==='chronicle'?'记录':'正文'}</span><textarea name="${kind==='chronicle'?'text':'body'}" aria-label="正文" rows="8" maxlength="100000" placeholder="写下来…" required>${escape(p.body??p.text??'')}</textarea></label>`;
@@ -76,7 +76,7 @@ export function payload(form,kind){
 export function summary(s,config){
  const p=s.payload;
  if(s.kind==='focus')return `${config.domains?.find(d=>d.id===p.domainId)?.name||'原领域已变化'} · ${durationLabel(p.adjustedDurationMs??p.durationMs)}${p.title?' · '+p.title:''}${p.planId?'\n方案：'+(config.plans?.find(q=>q.id===p.planId)?.title||'原方案已变化'):''}${p.note?'\n'+p.note:''}`;
- if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'可选',undecided:'待判断'}[p.necessity]}${p.allocation?' · 长期使用 '+p.allocation.startDate+' — '+p.allocation.expectedEndDate:''}`;
+ if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'非必要',undecided:'待判断'}[p.necessity]}${p.allocation?' · 长期使用 '+p.allocation.startDate+' — '+p.allocation.expectedEndDate:''}`;
  if(s.kind==='taskPlan')return `${p.title} · ${p.schedule==='day'?'安排 '+p.scheduledDate:p.schedule==='deadline'?'截至 '+p.deadline+(p.deadlineTime?' '+p.deadlineTime:''):'近期完成'}`;
  if(s.kind==='habit')return `${config.habits.find(h=>h.id===p.habitId)?.name||'习惯'} · ${p.kind==='check'?(p.checked?'已完成':'未完成'):p.kind==='number'?p.value+'（当日总数）':Object.values(p.items).filter(Boolean).length+' 项已勾选'}`;
  if(['problem','progress','plan'].includes(s.kind))return `${config.domains?.find(d=>d.id===p.domainId)?.name||'领域已变更'} · ${p.title||p.body}${p.next?'\n下一步：'+p.next:''}${p.planId?'\n方案：'+(config.plans?.find(q=>q.id===p.planId)?.title||'原方案已变化'):''}`;

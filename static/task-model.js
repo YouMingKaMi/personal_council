@@ -1,8 +1,11 @@
 export const scheduleOf=t=>t.schedule||'day';
 export const taskRecordDate=t=>t.date||t.completedDate||t.deadline||null;
-export function taskVisible(t,date,today){return scheduleOf(t)==='day'?t.date===date:t.done?t.completedDate===date:date===today;}
-export const taskRequired=(t,date)=>scheduleOf(t)==='day'?t.date===date:scheduleOf(t)==='deadline'&&(t.done?t.completedDate===date:t.deadline<=date);
-export function taskLabel(t){return scheduleOf(t)==='recent'?'近期':scheduleOf(t)==='deadline'?`截至 ${t.deadline}${t.deadlineTime?' '+t.deadlineTime:''}`:'';}
+export function taskVisible(t,date){return scheduleOf(t)==='day'&&t.date===date;}
+export const taskRequired=taskVisible;
+export function backlogTasks(state,{done=false,day}={}){return state.tasks.filter(t=>scheduleOf(t)!=='day'&&t.done===done&&(!done||!day||t.completedDate===day)).sort((a,b)=>done?(b.completedDate||'').localeCompare(a.completedDate||''):(a.deadline||'9999').localeCompare(b.deadline||'9999')||(a.deadlineTime||'23:59').localeCompare(b.deadlineTime||'23:59'));}
+export function ensureBacklogPanel(state){if(state.layout.some(p=>p.id==='task-backlog'))return false;const i=state.layout.findIndex(p=>p.id==='tasks');state.layout.splice(i<0?state.layout.length:i+1,0,{id:'task-backlog',size:'half',visible:true});return true;}
+export function updateTaskDetails(task,{title,...plan}){if(!title?.trim()||title.trim().length>200)throw Error('请填写任务内容（不超过200字）');Object.assign(task,{title:title.trim(),...taskPlan(plan)});return task;}
+export function taskLabel(t){return scheduleOf(t)==='recent'?(t.done&&t.completedDate?'近期 · '+t.completedDate+' 完成':'近期'):scheduleOf(t)==='deadline'?`截至 ${t.deadline}${t.deadlineTime?' '+t.deadlineTime:''}`:'';}
 export function taskPlan({schedule='day',scheduledDate='',deadline='',deadlineTime=''}){
  if(!['day','recent','deadline'].includes(schedule))throw Error('请选择安排方式');
  const day=v=>{if(!/^\d{4}-\d{2}-\d{2}$/.test(v)||v<'1901-01-01'||v>'2099-12-31'||new Date(v+'T12:00:00Z').toISOString().slice(0,10)!==v)throw Error('请选择有效日期');return v;};

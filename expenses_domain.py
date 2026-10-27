@@ -98,4 +98,4 @@ def validate_expenses(state):
         if not isinstance(month,str) or not re.fullmatch(r'(19\d{2}|20\d{2})-(0[1-9]|1[0-2])',month) or not isinstance(b,dict):raise ValueError('预算月份无效')
         for k in ('total','optional'):
             if b.get(k) is not None:amount(b[k],True)
-        if b.get('total') is not None and b.get('optional') is not None and b['optional'] > b['total']:raise ValueError('可选支出预算不能超过总预算')
+        if b.get('total') is not None and b.get('optional') is not None and b['optional'] > b['total']:raise ValueError('非必要支出预算不能超过总预算')
