@@ -138,7 +138,9 @@ def handler(relay):
                 return self.send({'error':'接口不存在'},404)
             if post: return self.send({'error':'接口不存在'},404)
             files={'/':'mobile/index.html','/sw.js':'mobile/sw.js','/mobile/app.js':'mobile/app.js',
-                   '/mobile/style.css':'mobile/style.css','/static/capture-form.js':'static/capture-form.js'}
+                   '/mobile/style.css':'mobile/style.css','/static/capture-form.js':'static/capture-form.js',
+                   '/static/favicon.ico':'static/favicon.ico','/static/icon-32.png':'static/icon-32.png',
+                   '/static/icon-180.png':'static/icon-180.png'}
             if path not in files: return self.send({'error':'页面不存在'},404)
             f=ROOT/files[path]
             return self.send(f.read_bytes(),mime=(mimetypes.guess_type(f)[0] or 'text/plain')+'; charset=utf-8')
