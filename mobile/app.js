@@ -1,5 +1,5 @@
 import {createPhoneWorkbench} from './timer-workbench.js';
-import {names,escape as esc,today,fields,payload,summary} from '/static/capture-form.js';
+import {updateAllocationForm,updateTaskPlanFields,names,escape as esc,today,fields,payload,summary} from '/static/capture-form.js';
 const $=s=>document.querySelector(s), KEY='personal-capture-v1';
 let saved;try{saved=JSON.parse(localStorage.getItem(KEY)||'null');}catch{}
 let state=saved||{drafts:{},queue:[],config:null};
@@ -24,11 +24,11 @@ function render(){
  $('#app').innerHTML=`<header><div><div class="wordmark">PERSONAL COUNCIL</div><h1>随手记</h1><small>先记下来，留给电脑确认。</small></div><small><i class="dot"></i>${connected?'已连接':'离线 / 待连接'}</small></header>`+
  ((!authenticated&&!ready&&!workbench.hasTimer())?`<section class="connection"><h2>连接你的收件箱</h2><p>输入专属连接码，开始记录。</p><form id="login"><input name="token" aria-label="连接码" type="password" autocomplete="current-password" placeholder="连接码" required><button class="primary">连接</button></form></section>`:
  `<nav class="tabs" aria-label="页面">${config().kinds.focus||workbench.hasTimer()?`<button data-tab="workbench" aria-selected="${tab==='workbench'}">工作台</button>`:''}<button data-tab="write" aria-selected="${tab==='write'}">记下来</button><button data-tab="queue" aria-selected="${tab==='queue'}">待发送${count?`<span class="count">${count}</span>`:''}</button><button data-tab="sent" aria-selected="${tab==='sent'}">已提交</button></nav>`+
- (tab==='workbench'?workbench.view():tab==='write'?ready?`<div class="types">${Object.keys(names).filter(k=>k!=='focus'&&config().kinds[k]).map(k=>`<button class="type" data-kind="${k}" aria-pressed="${k===kind}"><b>${{expense:'¥',task:'✓',chronicle:'≡',ideas:'✧',materials:'↳',habit:'○',problem:'?',progress:'→',plan:'◇'}[k]}</b>${names[k]}</button>`).join('')}</div><section class="sheet"><div class="sheet-head"><h2>${names[kind]}</h2><small>草稿保存在此设备</small></div><form id="capture-form">${fields(kind,formPayloadFromDraft(),config())}<div class="submit"><small>${connected?'发送到电脑收件箱':'离线时先保存，联网后重试'}</small><button class="primary" type="submit">${connected?'发送':'保存待发送'} ↗</button></div></form></section>`:'<div class="empty">等待电脑首次连接并发布录入选项。<br>稍后点击更新选项。</div>':
+ (tab==='workbench'?workbench.view():tab==='write'?ready?`<div class="types">${Object.keys(names).filter(k=>k!=='focus'&&config().kinds[k]).map(k=>`<button class="type" data-kind="${k}" aria-pressed="${k===kind}"><b>${{expense:'¥',task:'✓',taskPlan:'↗',chronicle:'≡',ideas:'✧',materials:'↳',habit:'○',problem:'?',progress:'→',plan:'◇'}[k]}</b>${names[k]}</button>`).join('')}</div><section class="sheet"><div class="sheet-head"><h2>${names[kind]}</h2><small>草稿保存在此设备</small></div><form id="capture-form">${fields(kind,formPayloadFromDraft(),config())}<div class="submit"><small>${connected?'发送到电脑收件箱':'离线时先保存，联网后重试'}</small><button class="primary" type="submit">${connected?'发送':'保存待发送'} ↗</button></div></form></section>`:'<div class="empty">等待电脑首次连接并发布录入选项。<br>稍后点击更新选项。</div>':
  tab==='queue'?`<div class="toolbar"><small>${count} 条待发送</small><button data-action="retry">重新发送</button></div>${state.queue.map(r=>`<article class="row"><div class="row-head"><span>${names[r.submission.kind]} · ${esc(r.submission.payload.date)}</span><span>待发送</span></div><p>${esc(summary(r.submission,config()))}</p>${r.error?`<div class="error">${esc(r.error)}</div>`:''}<div class="actions">${r.submission.kind==='focus'?'<small>计时已结束，发送内容保持原样。</small>':`<button data-edit="${esc(r.submission.id)}">复制回表单</button>`}</div></article>`).join('')||'<div class="empty">没有待发送的记录。</div>'}`:
  `<div class="toolbar"><small>最近提交</small><button data-action="refresh">刷新状态</button></div>${items.map(r=>`<article class="row"><div class="row-head"><span>${names[r.submission.kind]} · ${esc(r.submission.payload.date)}</span><span>${{pending:'等待电脑确认',imported:'已入库',rejected:'未采纳'}[r.status]}</span></div><p>${esc(summary(r.submission,config()))}</p></article>`).join('')||'<div class="empty">还没有提交记录，或尚未连接。</div>'}`)+
  `<div class="bottom"><button class="link" data-action="refresh">更新选项与状态</button><button class="link" data-action="connect">${authenticated?'重新连接':'输入连接码'}</button></div><div id="inline-login"></div>`);
- restoreDraft();
+ restoreDraft();if($('#capture-form')?.elements.schedule)updateTaskPlanFields($('#capture-form'));if($('#capture-form')?.elements.usageMode)updateAllocationForm($('#capture-form').elements.usageMode);
 }
 async function refresh(){
  try{const c=await api('/api/config');if(c.version!==1)throw Error('表单版本不兼容，请更新页面；原稿仍保留');
@@ -46,8 +46,8 @@ async function flush(){
  }}finally{sending=false;}
  await refresh();
 }
-document.addEventListener('input',e=>{workbench.input(e.target);if(e.target.closest('#capture-form'))try{draft();}catch(err){message(err.message);}});
-document.addEventListener('change',async e=>{try{if(await workbench.change(e.target))return;}catch(err){message(err.message);return;}if(['domainId','problemId'].includes(e.target.name)){draft();if(e.target.name==='domainId')delete state.drafts[kind].problemId;delete state.drafts[kind].planId;persist();render();return;}if(kind==='habit'&&['date','habitId'].includes(e.target.name)){
+document.addEventListener('input',e=>{workbench.input(e.target);if(['usageMonths','usageStart','usageExpectedEnd'].includes(e.target.name))updateAllocationForm(e.target);if(e.target.closest('#capture-form'))try{draft();}catch(err){message(err.message);}});
+document.addEventListener('change',async e=>{try{if(updateAllocationForm(e.target)){draft();return;}if(e.target.name==='schedule'){updateTaskPlanFields(e.target.closest('form'));draft();return;}if(await workbench.change(e.target))return;}catch(err){message(err.message);return;}if(['domainId','problemId'].includes(e.target.name)){draft();if(e.target.name==='domainId')delete state.drafts[kind].problemId;delete state.drafts[kind].planId;persist();render();return;}if(kind==='habit'&&['date','habitId'].includes(e.target.name)){
  const p=currentPayload();state.drafts[kind]={date:p.date,habitId:p.habitId};try{persist();render();}catch(err){message(err.message);}
 }});
 document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;try{

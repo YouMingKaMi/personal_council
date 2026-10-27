@@ -69,11 +69,11 @@ TOOLS = [
          'include_deleted': {'type': 'boolean'},
      }, ['section'])},
     {'name': 'council_expenses_summary', 'description':
-     '精确汇总指定公历月份的花销、退款、必要性、用途和每天的净支出；按退款到账日抵减。'
+     '汇总指定公历月份。basis=cash（默认）为实际付款减退款及回收款；basis=usage 为按使用天数分摊的成本，已结算项目用实际时长和回收金额重算。'
      '可筛选父分类（含子分类）及必要性。所有金额单位为人民币分，平均值为元的十进制字符串。'
      '本月截至今天，历史月按整月，未来月份无统计，不推测未录入消费；不改变国库余额。',
      'inputSchema': schema({
-         'month': TEXT, 'category_id': TEXT,
+         'month': TEXT, 'category_id': TEXT, 'basis':{'type':'string','enum':['cash','usage']},
          'necessity': {'type': 'string', 'enum': ['necessary', 'optional', 'undecided']},
          'revision': {'type': 'integer', 'minimum': 0},
      }, ['month'])},
@@ -261,7 +261,9 @@ class Query:
                 'refundCents': 0, 'entryCount': 0} for i in range(count)}
         totals = {'netCents': 0, 'grossCents': 0, 'refundCents': 0, 'entryCount': 0}
         necessity, by_category = {}, {}
-        for row in ledger.get('entries', []):
+        from expense_allocation import report_rows
+        basis=args.get('basis','cash')
+        for row in report_rows(ledger.get('entries', []),month,basis):
             if row.get('deleted') or row.get('date') not in days:
                 continue
             if parent and not matches(row.get('categoryId')):
@@ -269,7 +271,7 @@ class Query:
             if args.get('necessity') and row.get('necessity') != args['necessity']:
                 continue
             amount = row['amountCents']
-            if type(amount) is not int or amount <= 0 or row['kind'] not in ('expense', 'refund'):
+            if type(amount) is not int or amount < 0 or amount == 0 and not row.get('allocated') or row['kind'] not in ('expense', 'refund'):
                 raise ValueError('存在无效金额或消费类型，停止汇总')
             signed = -amount if row['kind'] == 'refund' else amount
             for target in (totals, days[row['date']]):
@@ -285,7 +287,7 @@ class Query:
         def average(divisor):
             return str((Decimal(totals['netCents']) / 100 / divisor).quantize(
                 Decimal('.01'), rounding=ROUND_HALF_UP)) if divisor else None
-        return {'month': month, 'throughDate': str(end) if count else None,
+        return {'month': month, 'basis':basis, 'throughDate': str(end) if count else None,
                 'currency': 'CNY', 'amountUnit': 'fen', **totals,
                 'necessityNetCents': necessity, 'categoryNetCents': by_category,
                 'categories': list(categories.values()), 'filters': args,
@@ -293,7 +295,7 @@ class Query:
                 'dailyAverageYuan': average(count), 'recordedDayAverageYuan': average(recorded),
                 'days': [{'date': d, **v} for d, v in days.items()],
                 'budget': ledger.get('budgets', {}).get(month),
-                'notes': '仅统计已保存流水；空白日按零参与日历日均，不证明实际没花钱。周期计划未扣款不计消费。预算为整月额度，分类筛选不改变预算。'}
+                'notes': ('分摊口径使用最新预计／实际使用期，结算后可追溯重算；预算仍按实际付款。' if basis=='usage' else '')+'仅统计已保存流水；空白日按零参与日历日均，不证明实际没花钱。周期计划未扣款不计消费。预算为整月额度，分类筛选不改变预算。'}
 
 
 def dispatch(query, message):

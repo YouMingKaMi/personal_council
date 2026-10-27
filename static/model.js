@@ -1,3 +1,4 @@
+import {taskRequired} from './task-model.js';
 import {monthlyRoot,reportFor} from './monthly-model.js';
 import {scheduled,metric,chronicleRule,chronicleComplete} from './tracking-model.js';
 // Pure domain selectors. Date calculations use calendar dates, never UTC slicing.
@@ -8,7 +9,7 @@ export function due(rule,date){if(!rule.enabled)return false;if(rule.frequency==
 export function habitDue(h,date){return scheduled(h,date);}
 export function period(rule,date){return rule.frequency==='monthly'?date.slice(0,7):date;}
 export function recordFor(s,r,date){if(r.frequency==='monthly'&&monthlyRoot(s,r.folder))return reportFor(s,date.slice(0,7));return s.notes.find(n=>!n.trashed&&n.ruleId===r.id&&n.period===period(r,date));}
-export function progress(s,date){const tasks=s.tasks.filter(t=>t.date===date);const habits=s.habits.filter(h=>habitDue(h,date));const rules=s.rules.filter(r=>due(r,date));const done=tasks.filter(t=>t.done).length+habits.filter(h=>metric(h,date).done).length+rules.filter(r=>chronicleRule(s,r)?chronicleComplete(s,date):recordFor(s,r,date)?.status==='done').length;const total=tasks.length+habits.length+rules.length;return {tasks,habits,rules,done,total,percent:total?Math.round(done/total*100):0};}
+export function progress(s,date){const tasks=s.tasks.filter(t=>taskRequired(t,date));const habits=s.habits.filter(h=>habitDue(h,date));const rules=s.rules.filter(r=>due(r,date));const done=tasks.filter(t=>t.done).length+habits.filter(h=>metric(h,date).done).length+rules.filter(r=>chronicleRule(s,r)?chronicleComplete(s,date):recordFor(s,r,date)?.status==='done').length;const total=tasks.length+habits.length+rules.length;return {tasks,habits,rules,done,total,percent:total?Math.round(done/total*100):0};}
 export function descendants(s,id){const ids=new Set([id]);let change=true;while(change){change=false;for(const f of s.folders)if(ids.has(f.parent)&&!ids.has(f.id)){ids.add(f.id);change=true;}}return ids;}
 export function folderPath(s,id){let path=[];let seen=new Set();while(id&&!seen.has(id)){seen.add(id);let f=s.folders.find(x=>x.id===id);if(!f)break;path.unshift(f);id=f.parent;}return path;}
 export function fieldsFor(s,id){return folderPath(s,id).flatMap(f=>f.fields||[]);}

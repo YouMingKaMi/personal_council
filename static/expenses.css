@@ -61,3 +61,20 @@
 .expense-inline-category{display:grid;grid-template-columns:minmax(0,1fr);align-items:center;gap:4px;margin-top:4px}.expense-inline-category input{min-width:0;width:100%;flex:1;font-size:11px}.expense-inline-category .button{justify-self:start;font-size:10px;padding:5px 6px}
 
 .expense-daily-analysis{border-top:1px solid var(--line);padding-top:18px;margin-top:16px}.expense-daily-analysis h3{font-size:12px;margin:0 0 12px}.expense-daily-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.expense-daily-stats>div{display:flex;flex-direction:column;gap:6px}.expense-daily-stats small{font-size:10px;color:var(--muted)}.expense-daily-stats strong{font-size:18px;font-variant-numeric:tabular-nums}.expense-daily-chart{display:block;width:100%;height:auto;margin-top:20px;overflow:visible}.expense-daily-chart polyline{stroke:var(--ink);stroke-width:1.8;fill:none;vector-effect:non-scaling-stroke}.expense-daily-chart circle{fill:var(--ink);stroke:var(--paper);stroke-width:1;cursor:help}.expense-daily-chart text{fill:var(--muted);font-size:9px}.expense-daily-chart .daily-grid{stroke:var(--line);stroke-dasharray:4 4}.expense-daily-analysis+.expense-trend-heading{border-top:1px solid var(--line);padding-top:18px}@media(max-width:550px){.expense-daily-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.expense-usage-fields{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.expense-usage-fields>label{display:flex;gap:12px;align-items:center;color:var(--muted);font-size:12px}
+.expense-usage-fields>label select{width:auto;min-width:130px}
+.expense-usage-fields [data-usage-dates]{margin-top:10px;display:grid;gap:10px}
+.expense-usage-fields [data-usage-dates][hidden],.task-plan-fields [hidden]{display:none!important}
+.expense-usage-fields label{font-size:12px}.expense-usage-fields input{margin-top:4px;width:100%}
+.expense-cost-caption{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:9px 0}
+.expense-basis{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
+.expense-basis select{width:auto}.expense-usage-card{padding:18px;border-bottom:1px solid var(--line)}
+.expense-usage-card header,.expense-usage-card footer{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.expense-usage-card header span,.expense-usage-card p,.expense-usage-card small{font-size:12px;color:var(--muted)}
+.expense-usage-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.expense-usage-numbers small,.expense-usage-numbers b{display:block}.expense-usage-numbers b{font-size:16px;margin-top:4px}
+.expense-usage-card footer{justify-content:flex-end;margin-top:14px}.expense-settle-preview{font-variant-numeric:tabular-nums;line-height:1.8}
+.task-plan-fields{display:grid;gap:14px}.task-plan-fields [data-task-deadline]{display:grid;gap:14px}
+.task-planning-label{font-size:11px;color:var(--muted);margin-top:3px}

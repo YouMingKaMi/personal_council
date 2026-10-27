@@ -68,6 +68,10 @@ def validate_expenses(state):
         for k in ('createdAt','updatedAt'):
             if not isinstance(e.get(k),str):raise ValueError('花销时间无效')
             datetime.datetime.fromisoformat(e[k].replace('Z','+00:00'))
+        if e.get('allocation') is not None:
+            from expense_allocation import allocation
+            if e.get('kind')!='expense':raise ValueError('退款不能单独设置使用期')
+            allocation(e['allocation'],purchase_date=e['date'])
         if e.get('kind') not in ('expense','refund'):
             raise ValueError('花销类型无效')
         if e['kind'] == 'refund':

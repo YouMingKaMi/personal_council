@@ -79,3 +79,8 @@ Mac 数据目录的 `mobile-bridge.json`（0600）含 `url`、`desktopToken`。�
 计时存储独立于原录入草稿；结束后先持久保存冻结提交，再写入待发送队列，成功后才清除本机当前计时。重试与响应丢失沿用同 ID，不重建已发送请求。现代浏览器可用 Web Locks 时串行处理同浏览器多标签操作；其它浏览器采用最新本机存储与跨页通知。设备时间倒退或异常跨越 30 天会暂停并提示检查。关闭／锁屏不等于暂停；忘记结束时需核对实际用时。清除网站数据仍会删除未上传的本机草稿与计时。
 
 中转站追加静态白名单 mobile/timer-model.js、mobile/timer-workbench.js，并接收新版 focus 配置与提交；不会开放远程审批。手机图标沿用 static/favicon.ico、icon-32.png、icon-180.png。Service Worker 更新 shell 缓存（含计时模块与图标），不清空 localStorage，不强制重载当前计时页。
+
+## 2026-10-27 长期使用与近期任务
+新增 taskPlan：payload.date 是录入日期（封套既有自然日语义），title、schedule（recent/day/deadline）；day 必须 scheduledDate，deadline 必须 deadline，可选 deadlineTime=HH:mm（北京时间）。recent 不填 scheduledDate/deadline/time，不把录入日期变成任务安排日。电脑转换为同一 task 的 schedule/date/deadline/deadlineTime，后续安排编辑不更换 ID。旧 task 仍仅 date/title，直接安排到该日，不接受改名或 null date。
+expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个字段完全不变。新增手机消费仅发送预计使用期，endDate/resaleCents 结算保留在电脑端办理，避免把旧消费覆盖成新消费。金额保持 amountCents 整数分，审核与总体验证均检查日期先后，不丢弃无效字段。已发送封套 ID 和内容冻结，升级 Service Worker 不清空草稿／队列／当前计时；旧离线数据继续接受。
+部署时除既有文件，还需 expense_allocation.py、task_domain.py、static/expense-allocation.js、static/expense-allocation-form.js、static/task-model.js。更新手机 app/style/sw、共享 capture-form、capture_contract 和静态白名单，保留服务器凭证及待处理数据库，更新后验证新三个 JS 均为 200。配置增加 taskPlan kind，不增加用户私人历史字段；电脑后台同步后发布最少录入配置。无远程审批权限扩张。

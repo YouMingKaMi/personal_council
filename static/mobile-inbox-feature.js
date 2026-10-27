@@ -1,4 +1,4 @@
-import {fields,payload,summary,escape as esc,names} from './capture-form.js';
+import {updateAllocationForm,updateTaskPlanFields,fields,payload,summary,escape as esc,names} from './capture-form.js';
 import {api,load} from './store.js';
 export function createMobileInbox(ctx){
  let data=null,error='',loading=false;
@@ -21,7 +21,7 @@ export function createMobileInbox(ctx){
   if(a==='inbox-reject'){if(!confirm('不采纳这条手机记录？原提交仍保留在已处理列表。'))return;await api('/api/mobile-inbox/reject',{id:row.id});ctx.closeModal();await refresh();}
  }
  async function submit(form){const r=data.items.find(r=>r.id===form.dataset.id),button=form.querySelector('[type=submit]')||form.querySelector('.primary');button.disabled=true;try{await api('/api/mobile-inbox/approve',{id:r.id,payload:payload(form,r.submission.kind)});ctx.closeModal();await load();await refresh();}finally{button.disabled=false;}}
- function change(e){const form=e.closest('[data-form="inbox-approve"]');if(!form||!['date','habitId','domainId','problemId'].includes(e.name))return;const r=data.items.find(r=>r.id===form.dataset.id);if(['domainId','problemId'].includes(e.name)){const p=payload(form,r.submission.kind);if(e.name==='domainId')p.problemId=null;delete p.planId;const actions=form.querySelector('.form-actions').outerHTML;form.innerHTML=fields(r.submission.kind,p,data.config)+actions;return;}if(r.submission.kind!=='habit')return;const p={date:form.elements.date.value,habitId:form.elements.habitId.value};const actions=form.querySelector('.form-actions').outerHTML;form.innerHTML=fields('habit',p,data.config)+actions;}
+ function change(e){if(updateAllocationForm(e))return;if(e.name==='schedule'){updateTaskPlanFields(e.closest('form'));return;}const form=e.closest('[data-form="inbox-approve"]');if(!form||!['date','habitId','domainId','problemId'].includes(e.name))return;const r=data.items.find(r=>r.id===form.dataset.id);if(['domainId','problemId'].includes(e.name)){const p=payload(form,r.submission.kind);if(e.name==='domainId')p.problemId=null;delete p.planId;const actions=form.querySelector('.form-actions').outerHTML;form.innerHTML=fields(r.submission.kind,p,data.config)+actions;return;}if(r.submission.kind!=='habit')return;const p={date:form.elements.date.value,habitId:form.elements.habitId.value};const actions=form.querySelector('.form-actions').outerHTML;form.innerHTML=fields('habit',p,data.config)+actions;}
  setInterval(()=>{if(ctx.view().page==='inbox'&&ctx.space()==='main'&&!document.querySelector('dialog[open]'))refresh();},10000);
  return {page,action,submit,change,refresh};
 }

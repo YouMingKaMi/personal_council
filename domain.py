@@ -54,10 +54,8 @@ def validate(state):
         datetime.datetime.fromisoformat(n['updatedAt'].replace('Z', '+00:00'))
         if not n['title'].strip():
             raise ValueError('笔记标题不能为空')
-    for t in state['tasks']:
-        if not isinstance(t.get('title'), str) or not t['title'].strip() or not isinstance(t.get('done'), bool):
-            raise ValueError('任务格式错误')
-        datetime.date.fromisoformat(t['date'])
+    from task_domain import validate_task
+    for t in state['tasks']:validate_task(t)
     for h in state['habits']:
         target = h.get('target')
         if type(target) not in (int, float) or not math.isfinite(target) or target <= 0:

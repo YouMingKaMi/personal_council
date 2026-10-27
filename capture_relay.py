@@ -141,6 +141,7 @@ def handler(relay):
             if post: return self.send({'error':'接口不存在'},404)
             files={'/':'mobile/index.html','/sw.js':'mobile/sw.js','/mobile/app.js':'mobile/app.js',
                    '/mobile/style.css':'mobile/style.css','/static/capture-form.js':'static/capture-form.js',
+                   '/static/expense-allocation.js':'static/expense-allocation.js','/static/expense-allocation-form.js':'static/expense-allocation-form.js','/static/task-model.js':'static/task-model.js',
                    '/mobile/timer-model.js':'mobile/timer-model.js','/mobile/timer-workbench.js':'mobile/timer-workbench.js',
                    '/static/favicon.ico':'static/favicon.ico','/static/icon-32.png':'static/icon-32.png',
                    '/static/icon-180.png':'static/icon-180.png'}

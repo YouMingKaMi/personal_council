@@ -7,14 +7,15 @@ import json
 import math
 import re
 
-KINDS = {'expense': '花销', 'task': '每日任务', 'chronicle': '编年史',
+KINDS = {'expense': '花销', 'task': '每日任务', 'taskPlan':'近期任务', 'chronicle': '编年史',
          'ideas': '想法暂存', 'materials': '信息原料', 'habit': '习惯记录', 'problem':'新问题', 'progress':'推进进展', 'plan':'解决方案', 'focus':'推进计时'}
 FIELDS = {
-    'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity'},
+    'expense': {'date', 'title', 'amountCents', 'categoryId', 'necessity', 'allocation'},
     'problem': {'date','domainId','title','body','next'},
     'progress': {'date','domainId','problemId','planId','body'},
     'plan': {'date','domainId','problemId','title','body'},
     'focus': {'date','domainId','problemId','planId','title','note','segments','durationMs','adjustedDurationMs'},
+    'taskPlan': {'date','title','schedule','scheduledDate','deadline','deadlineTime'},
     'task': {'date', 'title'}, 'chronicle': {'date', 'text', 'endDate'},
     'ideas': {'date', 'body'}, 'materials': {'date', 'body'},
     'habit': {'date', 'habitId', 'versionId', 'kind', 'value', 'checked', 'items'},
@@ -87,6 +88,10 @@ def envelope(value):
             if p.get('problemId') is not None:identifier(p['problemId'])
             if p.get('planId') is not None:
                 identifier(p['planId']);identifier(p.get('problemId'))
+    if kind=='taskPlan':
+        from task_domain import validate_task
+        text(p.get('title'),120)
+        validate_task({'title':p['title'],'done':False,'date':p.get('scheduledDate'),'schedule':p.get('schedule'),'deadline':p.get('deadline'),'deadlineTime':p.get('deadlineTime')})
     if kind in ('task', 'expense'):
         text(p.get('title'), 120)
     if kind in ('ideas', 'materials'):
@@ -98,6 +103,9 @@ def envelope(value):
     if kind == 'expense':
         if type(p.get('amountCents')) is not int or not 1 <= p['amountCents'] <= 99999999999:
             raise ValueError('金额须为正整数分')
+        if p.get('allocation') is not None:
+            from expense_allocation import allocation
+            allocation(p['allocation'],purchase_date=p['date'],allow_settlement=False)
         identifier(p.get('categoryId'))
         if p.get('necessity') not in ('necessary', 'optional', 'undecided'):
             raise ValueError('请选择必要性')
@@ -173,6 +181,8 @@ def apply_capture(state, submission):
         title = next(x.strip()[:80] for x in p['body'].splitlines() if x.strip()) if kind == 'ideas' else p['date'] + ' · 未加工想法'
         state['notes'].append({'id':record_id,'folder':folder['id'],'date':p['date'],'title':title,
             'body':p['body'],'tags':[],'values':{},'status':'done','dateBasis':'记录日期','createdAt':stamp,'updatedAt':stamp})
+    elif kind=='taskPlan':
+        state['tasks'].append({'id':record_id,'title':p['title'].strip(),'date':p.get('scheduledDate'),'schedule':p['schedule'],'deadline':p.get('deadline'),'deadlineTime':p.get('deadlineTime'),'done':False})
     elif kind == 'task':
         state['tasks'].append({'id':record_id,'title':p['title'].strip(),'date':p['date'],'done':False})
     elif kind == 'chronicle':
