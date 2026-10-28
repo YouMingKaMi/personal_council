@@ -75,7 +75,7 @@ TOOLS = [
          'include_deleted': {'type': 'boolean'},
      }, ['section'])},
     {'name': 'council_expenses_summary', 'description':
-     '汇总指定公历月份。basis=cash（默认）为实际付款减退款及回收款；basis=usage 为按使用天数分摊的成本，已结算项目用实际时长和回收金额重算。'
+     '汇总指定公历月份。basis=cash（默认）为实际付款减退款及回收款；basis=usage 为当次消费加固定期限/预计使用的按日成本，长期原付款不重复计入，已结算项目用实际时长和回收金额重算。'
      '可筛选父分类（含子分类）及必要性。所有金额单位为人民币分，平均值为元的十进制字符串。'
      '本月截至今天，历史月按整月，未来月份无统计，不推测未录入消费；不改变国库余额。',
      'inputSchema': schema({

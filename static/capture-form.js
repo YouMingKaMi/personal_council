@@ -1,3 +1,4 @@
+import {isFixedAllocation,plannedEndDate} from './expense-allocation.js';
 import {allocationFields,allocationFromForm,updateAllocationForm} from './expense-allocation-form.js';
 import {defaultMetrics,metricInputs,metricValues,metricFormat} from './daily-metrics-model.js';
 import {planLabel} from './plan-path.js';
@@ -81,7 +82,7 @@ export function summary(s,config){
  const p=s.payload;
  if(s.kind==='metrics'){const defs=config.metricDefinitions||defaultMetrics;return Object.entries(p.values).map(([id,n])=>{const d=defs.find(d=>d.id===id);return d?d.name+'：'+metricFormat(d,n):id+'：'+n;}).join(' · ')+(p.note?'\n'+p.note:'')+(p.replaceExisting?'\n已确认更新当天同项已有值':'');}
  if(s.kind==='focus')return `${config.domains?.find(d=>d.id===p.domainId)?.name||'原领域已变化'} · ${durationLabel(p.adjustedDurationMs??p.durationMs)}${p.title?' · '+p.title:''}${p.planId?'\n方案：'+(planLabel(config.plans||[],p.planId)||'原方案已变化'):''}${p.note?'\n'+p.note:''}`;
- if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'非必要',undecided:'待判断'}[p.necessity]}${p.allocation?' · 长期使用 '+p.allocation.startDate+' — '+p.allocation.expectedEndDate:''}`;
+ if(s.kind==='expense')return `${p.title} · ¥${(p.amountCents/100).toFixed(2)} · ${config.categories.find(c=>c.id===p.categoryId)?.name||'原分类已停用'} · ${{necessary:'必要',optional:'非必要',undecided:'待判断'}[p.necessity]}${p.allocation?' · '+(isFixedAllocation(p.allocation)?'固定期限':'预计使用')+' '+p.allocation.startDate+' — '+plannedEndDate(p.allocation):''}`;
  if(s.kind==='taskPlan')return `${p.title} · ${p.schedule==='day'?'安排 '+p.scheduledDate:p.schedule==='deadline'?'截至 '+p.deadline+(p.deadlineTime?' '+p.deadlineTime:''):'近期完成'}`;
  if(s.kind==='habit')return `${config.habits.find(h=>h.id===p.habitId)?.name||'习惯'} · ${p.kind==='check'?(p.checked?'已完成':'未完成'):p.kind==='number'?p.value+'（当日总数）':Object.values(p.items).filter(Boolean).length+' 项已勾选'}`;
  if(['problem','progress','plan'].includes(s.kind))return `${config.domains?.find(d=>d.id===p.domainId)?.name||'领域已变更'} · ${p.title||p.body}${s.kind==='plan'?('\n'+(p.nodeType==='question'?'子问题':'解决方案')+' · 上级：'+(p.parentId?(planLabel(config.plans||[],p.parentId)||'原上级路径已变化'):'主问题')):''}${p.next?'\n下一步：'+p.next:''}${p.planId?'\n方案：'+(planLabel(config.plans||[],p.planId)||'原方案已变化'):''}`;

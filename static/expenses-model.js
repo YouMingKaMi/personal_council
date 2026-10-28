@@ -1,4 +1,4 @@
-import {validateAllocation,allocatedRows,resaleRows,allocationToday} from './expense-allocation.js';
+import {validateAllocation,allocatedRows,resaleRows,allocationToday,isFixedAllocation} from './expense-allocation.js';
 // Amounts are integer fen (CNY). No balance mutation, inference or automatic debits.
 export const necessities={necessary:'必要',optional:'非必要',undecided:'待判断'};
 export const categoryDefaults=[['food','餐饮'],['living','居住与日用'],['transport','交通'],['health','健康'],['tools','学习与工具'],['leisure','娱乐与购物'],['social','人情'],['other','其他']];
@@ -23,7 +23,7 @@ export function restoreEntry(s,id){const e=ensure(s).entries.find(e=>e.id===id);
 export function billDate(b){const [y,m,d]=b.anchorDate.split('-').map(Number),offset=b.nextIndex*(b.cycle==='yearly'?12:1),a=new Date(Date.UTC(y,m-1+offset,1)),last=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth()+1,0)).getUTCDate();return `${a.getUTCFullYear()}-${String(a.getUTCMonth()+1).padStart(2,'0')}-${String(Math.min(d,last)).padStart(2,'0')}`;}
 export function saveBill(s,b){validDate(b.anchorDate);if(!b.title?.trim()||b.title.length>120||!['monthly','yearly'].includes(b.cycle)||!Number.isInteger(b.nextIndex)||b.nextIndex<0||b.nextIndex>2400)throw Error('周期账单设置无效');if(!Number.isSafeInteger(b.amountCents)||b.amountCents<=0||!Object.hasOwn(necessities,b.necessity)||!ensure(s).categories.some(c=>c.id===b.categoryId))throw Error('周期账单金额或分类无效');const old=s.expenses.subscriptions.find(e=>e.id===b.id);if(old)Object.assign(old,b);else s.expenses.subscriptions.push(b);}
 export function recordBill(s,id,entry){const bill=ensure(s).subscriptions.find(b=>b.id===id&&!b.deleted&&b.enabled);if(!bill)throw Error('账单已停用或移除');const due=billDate(bill);if(entry.billedOccurrence!==due)throw Error('这期账单已经更新，请重新打开');saveEntry(s,{...entry,kind:'expense',subscriptionId:id,billedOccurrence:due});bill.nextIndex++;}
-export function csv(s,month,{basis='cash',asOf=allocationToday()}={}){const entries=basis==='usage'?allocatedRows(ledger(s).entries,month).filter(e=>e.date<=asOf):entriesFor(s,month),rows=[['日期','内容','金额（元）','类型','必要性','用途','关联原消费ID','消费方式','开始使用','预计结束','实际结束','回收金额（元）','回收到账日期'],...entries.map(e=>[e.date,e.title,((e.kind==='refund'?-1:1)*e.amountCents/100).toFixed(2),e.allocated?'分摊成本':e.isResale?'回收款':e.kind==='refund'?'退款':'消费',necessities[e.necessity],categoryLabel(s,e.categoryId),e.allocated?e.id.split(':')[0]:e.refundOf||'',e.allocation?'长期使用':'当次消费',e.allocation?.startDate||'',e.allocation?.expectedEndDate||'',e.allocation?.endDate||'',e.allocation?.endDate?((e.allocation.resaleCents||0)/100).toFixed(2):'',e.allocation?.resaleCents?(e.allocation.resaleDate||e.allocation.endDate):''])];return '\uFEFF'+rows.map(row=>row.map((x,i)=>'"'+(i===2?String(x):String(x).replace(/^[=+@\-\t\r]/,"'$&")).replace(/"/g,'""')+'"').join(',')).join('\r\n');}
+export function csv(s,month,{basis='cash',asOf=allocationToday()}={}){const entries=basis==='usage'?allocatedRows(ledger(s).entries,month).filter(e=>e.date<=asOf):entriesFor(s,month),rows=[['日期','内容','金额（元）','类型','必要性','用途','关联原消费ID','消费方式','开始使用','预计结束','实际结束','回收金额（元）','回收到账日期','期限类型','固定期限结束'],...entries.map(e=>[e.date,e.title,((e.kind==='refund'?-1:1)*e.amountCents/100).toFixed(2),e.allocated?'分摊成本':e.isResale?'回收款':e.kind==='refund'?'退款':'消费',necessities[e.necessity],categoryLabel(s,e.categoryId),e.allocated?e.id.split(':')[0]:e.refundOf||'',e.allocation?'长期使用':'当次消费',e.allocation?.startDate||'',e.allocation?.expectedEndDate||'',e.allocation?.endDate||'',e.allocation?.endDate?((e.allocation.resaleCents||0)/100).toFixed(2):'',e.allocation?.resaleCents?(e.allocation.resaleDate||e.allocation.endDate):'',e.allocation?(isFixedAllocation(e.allocation)?'固定期限':'预计使用'):'',e.allocation?.fixedEndDate||''])];return '\uFEFF'+rows.map(row=>row.map((x,i)=>'"'+(i===2?String(x):String(x).replace(/^[=+@\-\t\r]/,"'$&")).replace(/"/g,'""')+'"').join(',')).join('\r\n');}
 
 // A category can be selected at any level; ancestors aggregate descendants once.
 export const foodSubcategories=[['food-coffee','咖啡','food'],['food-meals','正餐','food']];
@@ -43,4 +43,15 @@ export function dailyTrend(s,month,asOf,{categoryId='',necessity='',basis='cash'
  for(const e of rows){const d=by.get(e.date);if(!d)continue;d.count++;d.total+=e.kind==='refund'?-e.amountCents:e.amountCents;d[e.kind==='refund'?'refunds':'gross']+=e.amountCents;}
  const total=days.reduce((n,d)=>n+d.total,0),recordedDays=days.filter(d=>d.count).length,spendingDays=days.filter(d=>d.gross>0).length,peak=days.reduce((best,d)=>!best||d.total>best.total?d:best,null);
  return {days,total,recordedDays,spendingDays,average:count?total/count:null,recordedAverage:recordedDays?total/recordedDays:null,peak};
+}
+
+// Reconcile usage cost into disjoint buckets. Long purchases and their refunds
+// are replaced by daily allocations, never added to the original cash payment.
+export function monthlyUsageCost(s,month,{categoryId='',necessity='',asOf=allocationToday()}={}){
+ const rows=allocatedRows(ledger(s).entries,month).filter(e=>e.date<=asOf&&categoryMatches(s,e.categoryId,categoryId)&&(!necessity||e.necessity===necessity));
+ let immediate=0,fixed=0,estimated=0;const by=new Map();
+ for(const e of rows){const n=e.kind==='refund'?-e.amountCents:e.amountCents;if(!e.allocated){immediate+=n;continue;}if(isFixedAllocation(e.allocation))fixed+=n;else estimated+=n;const id=e.id.slice(0,e.id.lastIndexOf(':'));by.set(id,(by.get(id)||0)+n);}
+ const details=ledger(s).entries.filter(e=>by.has(e.id)).map(e=>({entry:e,total:by.get(e.id)}));
+ const days=dailyTrend(s,month,asOf,{categoryId,necessity,basis:'usage'}).days.length,total=immediate+fixed+estimated;
+ return {total,immediate,fixed,estimated,details,days,average:days?total/days:null};
 }

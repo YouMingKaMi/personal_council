@@ -1,4 +1,4 @@
-const CACHE='capture-shell-v7-daily-metrics';
+const CACHE='capture-shell-v8-fixed-expenses';
 const SHELL=['/','/mobile/app.js','/mobile/style.css','/static/capture-form.js','/static/plan-path.js','/static/daily-metrics-model.js','/static/expense-allocation.js','/static/expense-allocation-form.js','/static/task-model.js','/mobile/timer-model.js','/mobile/timer-workbench.js','/static/favicon.ico','/static/icon-32.png','/static/icon-180.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('capture-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));

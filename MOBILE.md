@@ -92,3 +92,6 @@ expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个�
 
 ## 每日指标 v1
 新增 kind=metrics：payload={date,values:{metricId:number},note?,replaceExisting?}，不改任何旧 kind。sleepMinutes 为整数分钟，评分为 0—10；手机表单兼容小数小时/时:分并转换为分钟。配置可增加 metricDefinitions（仅 id/name/kind/unit/min/max/archived 元数据，不包含日期、数值、备注或历史）。隐藏的已排队指标仍可审批；旧未发送草稿如含隐藏指标也保留输入。手机仅发非空项，审批原子合并同日期不同指标，已存在不同同项值/备注默认阻止，用户明确勾选 replaceExisting 才允许更新；已有同日记录 ID 不变，重复审批只入库一次。旧日期/任务/花销/计时等离线请求继续兼容，Service Worker 更新不清空草稿队列。中转站需同步 daily_metrics.py、capture_contract.py/capture_relay.py、static/daily-metrics-model.js、共享表单和手机 app/style/sw。
+
+## 固定期限费用（2026-10-28）
+v1 expense 新增 allocation 的可选固定期限分支：`{"termType":"fixed","startDate":"2024-01-01","fixedEndDate":"2024-12-31"}`。预计使用仍沿用原 `startDate` + `expectedEndDate`，termType 缺省按预计使用处理，旧请求不添加、重命名或改写字段。固定期限不得同时带预计日期/实际结算/出售回收字段；手机新增明确覆盖期，电脑审核确认一次入库。付款日期与固定覆盖期可不同。表单仍由 static/expense-allocation-form.js 与电脑共用，预览区区分“固定期限”和“预计使用”；草稿新增 usageTermType，仅是表单状态，不是新外层接口字段。中转站须同步 expense_allocation.py 与共享表单/模型，缓存升级至 capture-shell-v8-fixed-expenses。
