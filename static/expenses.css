@@ -70,12 +70,12 @@
 .expense-usage-fields label{font-size:12px}.expense-usage-fields input{margin-top:4px;width:100%}
 .expense-cost-caption{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:9px 0}
 .expense-basis{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}
-.expense-basis select{width:auto}.expense-usage-card{padding:18px;border-bottom:1px solid var(--line)}
+.expense-basis select{width:auto}.expense-usage-card{padding:12px 15px;border-bottom:1px solid var(--line)}
 .expense-usage-card header,.expense-usage-card footer{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.expense-usage-card header span,.expense-usage-card p,.expense-usage-card small{font-size:12px;color:var(--muted)}
-.expense-usage-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
-.expense-usage-numbers small,.expense-usage-numbers b{display:block}.expense-usage-numbers b{font-size:16px;margin-top:4px}
-.expense-usage-card footer{justify-content:flex-end;margin-top:14px}.expense-settle-preview{font-variant-numeric:tabular-nums;line-height:1.8}
+.expense-usage-card header strong{font-size:12px;font-weight:550;overflow-wrap:anywhere}.expense-usage-card header span{white-space:nowrap}.expense-usage-card p{margin:5px 0 0}.expense-usage-card header span,.expense-usage-card p,.expense-usage-card small{font-size:10px;color:var(--muted)}
+.expense-usage-numbers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0 0}.expense-usage-numbers>div{min-width:0}.expense-usage-numbers small{line-height:1.5}.expense-usage-numbers>div>small:last-child:not(:first-child){margin-top:2px}
+.expense-usage-numbers small,.expense-usage-numbers b{display:block}.expense-usage-numbers b{font-size:13px;font-weight:500;margin-top:3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.expense-usage-card footer{justify-content:flex-end;margin-top:7px}.expense-usage-card footer .button{font-size:10px;min-height:26px;padding:4px 7px}.expense-usage-card footer .button svg{width:12px;height:12px}.expense-settle-preview{font-variant-numeric:tabular-nums;line-height:1.8}
 .task-plan-fields{display:grid;gap:14px}.task-plan-fields [data-task-deadline]{display:grid;gap:14px}
 .task-planning-label{font-size:11px;color:var(--muted);margin-top:3px}
 
@@ -90,3 +90,8 @@
 
 .expense-cost-report{padding:18px 20px}.expense-cost-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding-bottom:18px;border-bottom:1px solid var(--line)}.expense-cost-heading h2{font-size:14px;margin:0 0 7px}.expense-cost-heading small{font-size:11px;color:var(--muted);display:block}.expense-cost-heading strong{font-size:27px;font-weight:500;display:block;margin-top:10px;font-variant-numeric:tabular-nums}.expense-cost-heading>div:last-child{text-align:right}.expense-cost-heading b{font-size:15px;display:block;margin-top:8px;font-weight:500}.expense-cost-parts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px 0}.expense-cost-parts>div{min-width:0}.expense-cost-parts small{font-size:11px;color:var(--muted);display:block;margin-bottom:8px}.expense-cost-parts b{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.expense-cost-details{margin-top:24px;border-top:1px solid var(--line);padding-top:18px}.expense-cost-details h3{font-size:13px;margin:0 0 12px}.expense-cost-details article{display:flex;gap:12px;align-items:center;padding:13px 0;border-top:1px solid var(--line)}.expense-cost-details article>div{flex:1;min-width:0}.expense-cost-details strong{font-size:12px;font-weight:500;overflow-wrap:anywhere}.expense-cost-details small{display:block;font-size:10px;color:var(--muted);margin-top:6px}.expense-cost-details article>b{font-size:13px;font-weight:500;white-space:nowrap}.expense-cost-details .muted{font-size:12px}.expense-tabs{overflow-x:auto;white-space:nowrap}.expense-tabs>button{flex-shrink:0}.expense-usage-fields [data-usage-dates]>label:first-child{margin-bottom:14px}
 @media(max-width:600px){.expense-cost-report{padding:16px}.expense-cost-parts{gap:8px}.expense-cost-parts b{font-size:13px}.expense-cost-parts small{font-size:10px}.expense-cost-details article{flex-wrap:wrap}.expense-cost-heading{gap:10px}}
+
+.expense-cost-method{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}.expense-cost-method select{font-size:11px;padding:5px 8px;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:2px}
+@media(max-width:600px){.expense-usage-numbers{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:8px}.expense-usage-card{padding:12px}.expense-usage-card header{align-items:start}.expense-usage-card footer{flex-wrap:wrap}}
+
+.expense-usage-card header>strong{flex:1;min-width:0}.expense-usage-card header .page-menu>summary{width:24px;height:24px;border:0;background:transparent}.expense-usage-card>.expense-usage-numbers+small{display:block;margin-top:5px}

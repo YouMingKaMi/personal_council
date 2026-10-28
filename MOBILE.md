@@ -95,3 +95,5 @@ expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个�
 
 ## 固定期限费用（2026-10-28）
 v1 expense 新增 allocation 的可选固定期限分支：`{"termType":"fixed","startDate":"2024-01-01","fixedEndDate":"2024-12-31"}`。预计使用仍沿用原 `startDate` + `expectedEndDate`，termType 缺省按预计使用处理，旧请求不添加、重命名或改写字段。固定期限不得同时带预计日期/实际结算/出售回收字段；手机新增明确覆盖期，电脑审核确认一次入库。付款日期与固定覆盖期可不同。表单仍由 static/expense-allocation-form.js 与电脑共用，预览区区分“固定期限”和“预计使用”；草稿新增 usageTermType，仅是表单状态，不是新外层接口字段。中转站须同步 expense_allocation.py 与共享表单/模型，缓存升级至 capture-shell-v8-fixed-expenses。
+
+新花销表单仅提供必要/非必要；旧 v1 的 necessity=undecided 请求和本机草稿仍可解析、确认，未批量修改既有数据。手机缓存升级为 capture-shell-v9-expense-costs；中转站同步 static/capture-form.js、static/expense-allocation.js 和 mobile/sw.js。桌面当下均摊是只读计算选项，不新增手机字段，不改变上传数据和确认流程。

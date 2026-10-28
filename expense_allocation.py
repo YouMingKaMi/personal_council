@@ -31,7 +31,7 @@ def allocation(value, *, purchase_date=None, allow_settlement=True):
         if date(received)>dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).date().isoformat() or purchase_date and received<purchase_date:raise ValueError('回收到账日期无效')
     return value
 
-def report_rows(entries,month,basis='cash'):
+def report_rows(entries,month,basis='cash',*,as_of=None):
     """Same integer-day allocation as the desktop pure model; no state writes."""
     source={e['id']:e for e in entries}
     if basis=='cash':
@@ -41,14 +41,20 @@ def report_rows(entries,month,basis='cash'):
             if e.get('deleted') or not a or not a.get('endDate') or not a.get('resaleCents') or not (a.get('resaleDate') or a['endDate']).startswith(month):continue
             rows.append({**e,'date':a.get('resaleDate') or a['endDate'],'title':e['title']+' · 回收款','kind':'refund','amountCents':a['resaleCents'],'isResale':True})
         return rows
-    if basis!='usage':raise ValueError('统计口径无效')
+    if basis not in ('usage','usage_elapsed'):raise ValueError('统计口径无效')
+    as_of=dt.date.fromisoformat(as_of or str(dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).date()))
     first=dt.date.fromisoformat(month+'-01');last=dt.date(first.year+int(first.month==12),first.month%12+1,1)
     rows=[e for e in entries if not e.get('deleted') and not e.get('allocation') and not (e['kind']=='refund' and source.get(e.get('refundOf'),{}).get('allocation')) and isinstance(e.get('date'),str) and e['date'].startswith(month)]
     for e in entries:
         if e.get('deleted') or not e.get('allocation') or e['kind']!='expense':continue
-        a=e['allocation'];start=dt.date.fromisoformat(a['startDate']);end=dt.date.fromisoformat(a.get('endDate') or a.get('fixedEndDate') or a['expectedEndDate'])+dt.timedelta(days=1)
-        days=(end-start).days;refunds=sum(r['amountCents'] for r in entries if not r.get('deleted') and r['kind']=='refund' and r['refundOf']==e['id'])
-        net=e['amountCents']-refunds-(a.get('resaleCents',0) if a.get('endDate') else 0)
+        a=e['allocation'];elapsed=basis=='usage_elapsed' and a.get('termType')!='fixed'
+        if elapsed and dt.date.fromisoformat(e['date'])>as_of:continue
+        start=dt.date.fromisoformat(a['startDate']);end=dt.date.fromisoformat(a.get('endDate') or a.get('fixedEndDate') or a['expectedEndDate'])+dt.timedelta(days=1)
+        if elapsed:end=min(end,as_of+dt.timedelta(days=1)) if a.get('endDate') else as_of+dt.timedelta(days=1)
+        days=(end-start).days
+        if days<=0:continue
+        refunds=sum(r['amountCents'] for r in entries if not r.get('deleted') and r['kind']=='refund' and r['refundOf']==e['id'] and (not elapsed or dt.date.fromisoformat(r['date'])<=as_of))
+        net=e['amountCents']-refunds-(a.get('resaleCents',0) if a.get('endDate') and (not elapsed or dt.date.fromisoformat(a['endDate'])<=as_of) else 0)
         day=max(first,start)
         while day<min(last,end):
             i=(day-start).days;amount=net*(i+1)//days-net*i//days

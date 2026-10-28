@@ -19,11 +19,12 @@ export function usageToDate(entry,entries,asOf=allocationToday()){
 }
 
 export function resaleRows(entries){return entries.filter(e=>!e.deleted&&e.kind==='expense'&&e.allocation?.endDate&&e.allocation.resaleCents>0).map(e=>({...e,id:'resale-'+e.id,date:e.allocation.resaleDate||e.allocation.endDate,title:e.title+' · 回收款',amountCents:e.allocation.resaleCents,kind:'refund',refundOf:e.id,allocation:null,virtual:true,isResale:true}));}
-export function allocatedRows(entries,month){
+export function allocatedRows(entries,month,{method='term',asOf=allocationToday()}={}){
+ if(!['term','elapsed'].includes(method))throw Error('使用成本口径无效');civil(asOf);
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('分摊统计需要有效月份');
  const original=new Map(entries.map(e=>[e.id,e])),rows=entries.filter(e=>!e.deleted&&!e.allocation&&!(e.kind==='refund'&&original.get(e.refundOf)?.allocation)&&e.date.startsWith(month));
  const [y,m]=month.split('-').map(Number),lo=Date.UTC(y,m-1,1)/DAY,hi=Date.UTC(y,m,1)/DAY;
- for(const e of entries){if(e.deleted||e.kind!=='expense'||!e.allocation)continue;const u=usageInfo(e,entries),start=civil(u.start),end=civil(u.end)+1;
+ for(const e of entries){if(e.deleted||e.kind!=='expense'||!e.allocation)continue;const elapsed=method==='elapsed'&&!isFixedAllocation(e.allocation);if(elapsed&&e.date>asOf)continue;const info=usageInfo(e,entries),current=elapsed?usageToDate(e,entries,asOf):null,u=elapsed?{...info,days:current.days,net:current.net,end:current.through}:info;if(!u.days)continue;const start=civil(u.start),end=civil(u.end)+1;
   for(let day=Math.max(lo,start);day<Math.min(hi,end);day++){
    const i=day-start,amount=prefix(u.net,i+1,u.days)-prefix(u.net,i,u.days);
    rows.push({...e,id:e.id+':'+day,date:new Date(day*DAY).toISOString().slice(0,10),title:e.title+' · 分摊',amountCents:Math.abs(amount),kind:amount<0?'refund':'expense',virtual:true,allocated:true});

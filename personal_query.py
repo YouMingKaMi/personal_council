@@ -75,11 +75,11 @@ TOOLS = [
          'include_deleted': {'type': 'boolean'},
      }, ['section'])},
     {'name': 'council_expenses_summary', 'description':
-     '汇总指定公历月份。basis=cash（默认）为实际付款减退款及回收款；basis=usage 为当次消费加固定期限/预计使用的按日成本，长期原付款不重复计入，已结算项目用实际时长和回收金额重算。'
+     '汇总指定公历月份。basis=cash（默认）为实际付款减退款及回收款；basis=usage 为当次消费加固定期限/预计使用的按日成本，长期原付款不重复计入，已结算项目用实际时长和回收金额重算；basis=usage_elapsed 为当下均摊，仅预计使用类按截至今天已使用天数重算，固定期限不变。'
      '可筛选父分类（含子分类）及必要性。所有金额单位为人民币分，平均值为元的十进制字符串。'
      '本月截至今天，历史月按整月，未来月份无统计，不推测未录入消费；不改变国库余额。',
      'inputSchema': schema({
-         'month': TEXT, 'category_id': TEXT, 'basis':{'type':'string','enum':['cash','usage']},
+         'month': TEXT, 'category_id': TEXT, 'basis':{'type':'string','enum':['cash','usage','usage_elapsed']},
          'necessity': {'type': 'string', 'enum': ['necessary', 'optional', 'undecided']},
          'revision': {'type': 'integer', 'minimum': 0},
      }, ['month'])},
@@ -308,7 +308,7 @@ class Query:
                 'dailyAverageYuan': average(count), 'recordedDayAverageYuan': average(recorded),
                 'days': [{'date': d, **v} for d, v in days.items()],
                 'budget': ledger.get('budgets', {}).get(month),
-                'notes': ('分摊口径使用最新预计／实际使用期，结算后可追溯重算；预算仍按实际付款。' if basis=='usage' else '')+'仅统计已保存流水；空白日按零参与日历日均，不证明实际没花钱。周期计划未扣款不计消费。预算为整月额度，分类筛选不改变预算。'}
+                'notes': ('分摊口径使用最新预计／实际使用期，结算后可追溯重算；预算仍按实际付款。' if basis=='usage' else '当下均摊：预计使用类以截至今天的已用天数重算，历史月份会随之调整；固定期限仍按完整期限。' if basis=='usage_elapsed' else '')+'仅统计已保存流水；空白日按零参与日历日均，不证明实际没花钱。周期计划未扣款不计消费。预算为整月额度，分类筛选不改变预算。'}
 
 
 def dispatch(query, message):
