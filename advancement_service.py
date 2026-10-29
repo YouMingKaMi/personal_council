@@ -3,7 +3,7 @@ import datetime as dt
 import json
 import time
 import uuid
-from advancement_domain import ident,text,day,number,plan_chain,plan_available,problem_scope,PLAN_CLOSED
+from advancement_domain import ident,text,day,number,plan_chain,plan_available,problem_scope,PLAN_CLOSED,recording_mode
 from advancement_folders import new_domain,rename_domain,synchronize
 
 SERVER_CLOCK_GAP_MS = 30000
@@ -39,6 +39,33 @@ def domain(a,id):
     d=next((x for x in a['domains'] if x['id']==id and not x['archived']),None)
     if not d:raise ValueError('领域不存在或已收起')
     return d
+
+
+def activity_ref(a,p):
+    id=p.get('activityId')
+    if not id:return None
+    row=next((x for x in a.get('activities',[]) if x['id']==id and not x['archived']),None)
+    if not row or row['domainId']!=p.get('domainId'):raise ValueError('日常项目不存在或不属于该领域，请更新选项')
+    if p.get('problemId') or p.get('planId'):raise ValueError('日常项目与问题方案须分开记录')
+    return row
+
+
+def add_manual(state,c,id,at,ended_at):
+    a=state.setdefault('advancement',empty(state));d=domain(a,c['domainId']);pid=c.get('problemId') or None
+    if pid and issue(a,pid)['domainId']!=d['id']:raise ValueError('问题不属于此领域')
+    qid=c.get('planId') or None
+    if qid:
+        q=plan(a,qid)
+        if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('补记与方案不一致')
+    activity=activity_ref(a,c)
+    duration=number(c.get('durationMs'))
+    if duration<=0 or duration>86400000:raise ValueError('补记时长须大于 0 且不超过 24 小时')
+    if any(s['id']==id for s in a['sessions']):raise ValueError('补记标识重复')
+    row={'id':ident(id),'domainId':d['id'],'problemId':pid,'title':text(c.get('title',''),300) or (activity['name'] if activity else ''),'date':day(c['date']),
+         'segments':[],'durationMs':duration,'manual':True,'deleted':False,'note':text(c.get('note','')),'endedAt':ended_at}
+    if qid:row['planId']=qid
+    if activity:row['activityId']=activity['id']
+    a['sessions'].append(row);return row
 
 
 def issue(a,id):
@@ -91,7 +118,7 @@ def add_plan(state,c,id,at):
 
 
 def add_update(state,p,id,at):
-    a=state.setdefault('advancement',empty(state));d=domain(a,p.get('domainId'));pid=p.get('problemId') or None
+    a=state.setdefault('advancement',empty(state));d=domain(a,p.get('domainId'));activity=activity_ref(a,p);pid=p.get('problemId') or None
     if pid and issue(a,pid)['domainId']!=d['id']:raise ValueError('问题不属于该领域')
     qid=p.get('planId') or None
     if qid:
@@ -100,6 +127,7 @@ def add_update(state,p,id,at):
     if any(x['id']==id for x in a['updates']):raise ValueError('进展标识冲突')
     row={'id':id,'domainId':d['id'],'problemId':pid,'date':day(p.get('date')),'body':text(p.get('body'),100000,True),'createdAt':at}
     if qid:row['planId']=qid
+    if activity:row['activityId']=activity['id']
     a['updates'].append(row);return row
 
 
@@ -156,6 +184,22 @@ def mutate(state,c,now):
             if w['temporaryDate']!=date:w.update(temporaryDate=date,temporaryDomainIds=[])
             if id not in w['temporaryDomainIds']:w['temporaryDomainIds'].append(id)
         return
+    if op in ('activity-add','activity-edit'):
+        rows=a.setdefault('activities',[])
+        if op=='activity-add':
+            d=domain(a,c['domainId']);name=text(c.get('name'),80,True).strip();id=ident(c.get('id') or str(uuid.uuid4()))
+            if any(x['id']==id for x in rows):raise ValueError('日常项目标识重复')
+            if any(x['domainId']==d['id'] and not x['archived'] and x['name']==name for x in rows):raise ValueError('已有同名日常项目')
+            rows.append({'id':id,'domainId':d['id'],'name':name,'archived':False,'createdAt':at,'updatedAt':at})
+        else:
+            x=next((x for x in rows if x['id']==c.get('id')),None)
+            if not x or c.get('expected')!=x['updatedAt']:raise ValueError('日常项目已变化，请重新打开')
+            name=text(c.get('name',x['name']),80,True).strip();archived=c.get('archived',x['archived'])
+            if type(archived) is not bool:raise ValueError('日常项目状态无效')
+            if not archived and any(y['id']!=x['id'] and y['domainId']==x['domainId'] and not y['archived'] and y['name']==name for y in rows):raise ValueError('已有同名日常项目')
+            if archived and (a.get('active') or {}).get('activityId')==x['id']:raise ValueError('请先结束该项目的计时')
+            x.update(name=name,archived=archived,updatedAt=at)
+        return
     if op=='discard':
         r=a.get('active')
         if not r or r['id']!=c.get('id'):raise ValueError('当前计时已变化，请刷新后取消')
@@ -171,6 +215,10 @@ def mutate(state,c,now):
     if op=='domain':
         old=next((d for d in a['domains'] if d['id']==c.get('id')),None)
         if old:
+            if 'recordingMode' in c:
+                if c['recordingMode'] not in ('activities','problems'):raise ValueError('领域录入方式无效')
+                old['recordingMode']=c['recordingMode']
+            if 'name' in c:old.setdefault('recordingMode',recording_mode(old))
             if 'goal' in c:old['goal']=text(c['goal'],2000)
             if 'name' in c:rename_domain(state,old,c['name'])
             if 'archived' in c:
@@ -240,7 +288,7 @@ def mutate(state,c,now):
         r=a['active']
         if op=='start':
             if r:raise ValueError('已有计时，请先结束后切换')
-            d=domain(a,c['domainId']);pid=c.get('problemId') or None;qid=c.get('planId') or None
+            d=domain(a,c['domainId']);activity=activity_ref(a,c);pid=c.get('problemId') or None;qid=c.get('planId') or None
             if qid:
                 q=plan(a,qid)
                 if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('计时与方案不一致')
@@ -253,9 +301,10 @@ def mutate(state,c,now):
                 d['focusId']=pid
                 if qid:p['focusPlanId']=qid
                 if p['status']=='open':p.update(status='active',updatedAt=at)
-            a['active']={'id':str(uuid.uuid4()),'domainId':d['id'],'problemId':pid,'title':text(c.get('title',''),300),
+            a['active']={'id':str(uuid.uuid4()),'domainId':d['id'],'problemId':pid,'title':text(c.get('title',''),300) or (activity['name'] if activity else ''),
                          'date':day(c['date']),'owner':ident(c['owner']),'status':'running','startedAt':now,'lastSeen':now,'segmentStart':now,'segments':[],'interrupted':False}
             if qid:a['active']['planId']=qid
+            if activity:a['active']['activityId']=activity['id']
         elif r and c.get('id')!=r['id']:raise ValueError('计时已变化，请刷新后重试')
         elif not r:
             if op!='heartbeat':raise ValueError('当前没有计时')
@@ -271,8 +320,9 @@ def mutate(state,c,now):
             note=text(c.get('note',''));a['sessions'].append({k:r[k] for k in ('id','domainId','problemId','title','date','segments')})
             s=a['sessions'][-1]
             if r.get('planId'):s['planId']=r['planId']
+            if r.get('activityId'):s['activityId']=r['activityId']
             s.update(manual=False,deleted=False,durationMs=sum(x['end']-x['start'] for x in r['segments']),note=note,endedAt=now)
-            if note.strip():add_update(state,{'domainId':r['domainId'],'problemId':r['problemId'],'date':c.get('date',r['date']),'body':note,'planId':r.get('planId')},str(uuid.uuid4()),at)
+            if note.strip():add_update(state,{'domainId':r['domainId'],'problemId':r['problemId'],'date':c.get('date',r['date']),'body':note,'planId':r.get('planId'),'activityId':r.get('activityId')},str(uuid.uuid4()),at)
             if 'next' in c and r['problemId']:
                 p=issue(a,r['problemId']);p['next']=text(c['next']);p['updatedAt']=at
             a['active']=None
@@ -286,18 +336,7 @@ def mutate(state,c,now):
             if 'original' not in s:s['original']={k:s[k] for k in ('segments','durationMs','manual')}
             s.update(manual=True,segments=[],durationMs=duration)
         if 'note' in c:s['note']=text(c['note'])
-    elif op=='manual':
-        d=domain(a,c['domainId']);pid=c.get('problemId') or None
-        if pid and issue(a,pid)['domainId']!=d['id']:raise ValueError('问题不属于此领域')
-        qid=c.get('planId') or None
-        if qid:
-            q=plan(a,qid)
-            if q['domainId']!=d['id'] or q['problemId']!=pid:raise ValueError('补记与方案不一致')
-        duration=number(c.get('durationMs'))
-        if duration<=0 or duration>86400000:raise ValueError('补记时长须在 0—24 小时内')
-        a['sessions'].append({'id':str(uuid.uuid4()),'domainId':d['id'],'problemId':pid,'title':text(c.get('title',''),300),'date':day(c['date']),
-                              'segments':[],'durationMs':duration,'manual':True,'deleted':False,'note':text(c.get('note','')),'endedAt':now})
-        if qid:a['sessions'][-1]['planId']=qid
+    elif op=='manual':add_manual(state,c,str(uuid.uuid4()),at,now)
     else:raise ValueError('未知推进操作')
 
 

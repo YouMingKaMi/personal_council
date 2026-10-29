@@ -1,3 +1,4 @@
+import {recordingMode} from '/static/activity-model.js';
 import {planLabel} from '/static/plan-path.js';
 import {escape as esc,durationLabel} from '/static/capture-form.js';
 import {beginTimer,checkpoint,transition,timerSubmission,elapsed,timeClock} from './timer-model.js';
@@ -16,9 +17,9 @@ export function createPhoneWorkbench(ctx){
   const ds=c.domains||[],v=w.draft||{},focused=ds.filter(d=>(c.focusDomainIds||[]).includes(d.id));
   const did=ds.some(d=>d.id===v.domainId)?v.domainId:focused[0]?.id||ds[0]?.id;
   const ps=(c.problems||[]).filter(p=>p.domainId===did),pid=ps.some(p=>p.id===v.problemId)?v.problemId:'';
-  const qs=(c.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid);
+  const qs=(c.plans||[]).filter(q=>q.domainId===did&&q.problemId===pid),xs=(c.activities||[]).filter(x=>x.domainId===did),aid=pid?'':Object.hasOwn(v,'activityId')?(xs.some(x=>x.id===v.activityId)?v.activityId:''):recordingMode(ds.find(d=>d.id===did))==='activities'?xs[0]?.id||'':'';
   if(!ds.length)return '<p class="empty">先在电脑建立领域，再更新手机选项。</p>';
-  return `<form id="focus-start" class="focus-config"><label>领域<select name="domainId" aria-label="计时领域">${focused.length?`<optgroup label="专注领域">${focused.map(d=>option(d,did)).join('')}</optgroup><optgroup label="其他领域">${ds.filter(d=>!focused.some(x=>x.id===d.id)).map(d=>option(d,did)).join('')}</optgroup>`:ds.map(d=>option(d,did)).join('')}</select></label><label>这次做什么（可选）<input name="title" aria-label="这次做什么" maxlength="300" value="${esc(v.title)}" placeholder="例如：跑步、训练、读资料"></label><details ${pid?'open':''}><summary>关联问题或方案（可选）</summary><label>问题<select name="problemId" aria-label="计时问题"><option value="">自由推进</option>${ps.map(p=>option(p,pid)).join('')}</select></label><label>方案<select name="planId" aria-label="计时方案"><option value="">不关联方案</option>${qs.map(q=>option({...q,title:planLabel(c.plans||[],q.id)},v.planId)).join('')}</select></label></details><button type="submit" class="primary focus-start">▷ 开始推进</button></form>${w.cancelledTimer?button('restore','撤销上次取消','link focus-undo'):''}`;
+  return `<form id="focus-start" class="focus-config"><label>领域<select name="domainId" aria-label="计时领域">${focused.length?`<optgroup label="专注领域">${focused.map(d=>option(d,did)).join('')}</optgroup><optgroup label="其他领域">${ds.filter(d=>!focused.some(x=>x.id===d.id)).map(d=>option(d,did)).join('')}</optgroup>`:ds.map(d=>option(d,did)).join('')}</select></label>${xs.length?`<label>训练项目<select name="activityId" aria-label="计时训练项目"><option value="">不选项目 / 自由记录</option>${xs.map(x=>option(x,aid)).join('')}</select></label>`:''}<label>这次做什么（可选）<input name="title" aria-label="这次做什么" maxlength="300" value="${esc(v.title)}" placeholder="例如：跑步、训练、读资料"></label><details ${pid?'open':''}><summary>关联问题或方案（可选）</summary><label>问题<select name="problemId" aria-label="计时问题"><option value="">自由推进</option>${ps.map(p=>option(p,pid)).join('')}</select></label><label>方案<select name="planId" aria-label="计时方案"><option value="">不关联方案</option>${qs.map(q=>option({...q,title:planLabel(c.plans||[],q.id)},v.planId)).join('')}</select></label></details><button type="submit" class="primary focus-start">▷ ${recordingMode(ds.find(d=>d.id===did))==='activities'?'开始训练':'开始推进'}</button>${c.kinds?.time?button('manual','补记时间','link'):''}</form>${w.cancelledTimer?button('restore','撤销上次取消','link focus-undo'):''}`;
  }
  function view(){
   try{
@@ -39,9 +40,10 @@ export function createPhoneWorkbench(ctx){
  async function recover(){return lock(()=>stage(read()));}
  async function submit(form){
   if(form.id!=='focus-start')return false;
-  await lock(()=>{const w=read();if(w.timer)throw Error('请先结束当前计时');const f=Object.fromEntries(new FormData(form)),c=ctx.config(),d=c.domains?.find(d=>d.id===f.domainId),p=c.problems?.find(p=>p.id===f.problemId&&p.domainId===d?.id),q=c.plans?.find(q=>q.id===f.planId&&q.problemId===p?.id&&q.domainId===d?.id);
-   if(!d||f.problemId&&!p||f.planId&&!q)throw Error('选项已变化，请更新后重选');
-   w.draft=f;w.timer=beginTimer({domainId:d.id,problemId:p?.id||null,planId:q?.id||null,title:f.title.trim()||q?.title||p?.title||'',names:{domain:d.name,problem:p?.title||'',plan:q?.title||''}},Date.now(),crypto.randomUUID());write(w);
+  await lock(()=>{const w=read();if(w.timer)throw Error('请先结束当前计时');const f=Object.fromEntries(new FormData(form)),c=ctx.config(),d=c.domains?.find(d=>d.id===f.domainId),p=c.problems?.find(p=>p.id===f.problemId&&p.domainId===d?.id),q=c.plans?.find(q=>q.id===f.planId&&q.problemId===p?.id&&q.domainId===d?.id),x=c.activities?.find(x=>x.id===f.activityId&&x.domainId===d?.id);
+   if(f.activityId&&(f.problemId||f.planId))throw Error('请分别选择训练项目或问题方案');
+   if(!d||f.problemId&&!p||f.planId&&!q||f.activityId&&!x)throw Error('选项已变化，请更新后重选');
+   w.draft=f;w.timer=beginTimer({domainId:d.id,problemId:p?.id||null,planId:q?.id||null,...(x?{activityId:x.id}:{}),title:f.title.trim()||x?.name||q?.title||p?.title||'',names:{domain:d.name,activity:x?.name||'',problem:p?.title||'',plan:q?.title||''}},Date.now(),crypto.randomUUID());write(w);
   });ctx.render();return true;
  }
  async function action(name){
@@ -69,8 +71,8 @@ export function createPhoneWorkbench(ctx){
   lock(()=>{const w=read();if(values&&!w.timer)w.draft=values;else if(e.id==='focus-note'&&w.timer?.status==='finished')w.timer.note=note;else return;write(w);}).catch(err=>ctx.message(err.message));
  }
  async function change(e){
-  const form=e.closest('#focus-start');if(!form||!['domainId','problemId'].includes(e.name))return false;
-  const values=Object.fromEntries(new FormData(form));if(e.name==='domainId')values.problemId='';values.planId='';
+  const form=e.closest('#focus-start');if(!form||!['domainId','problemId','activityId'].includes(e.name))return false;
+  const values=Object.fromEntries(new FormData(form));if(e.name==='domainId'){values.problemId='';delete values.activityId;values.title='';}if(e.name==='activityId'){values.problemId='';values.title='';}if(e.name==='problemId'&&values.problemId){values.activityId='';values.title='';}values.planId='';
   await lock(()=>{const w=read();if(!w.timer){w.draft=values;write(w);}});ctx.render();return true;
  }
  function tick(){try{const t=read().timer;for(const e of document.querySelectorAll('[data-phone-clock]'))e.textContent=timeClock(elapsed(t));}catch{}}

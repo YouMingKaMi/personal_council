@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import {target,total} from '../static/advancement-model.js';
+import {recordingMode,activityRows} from '../static/activity-model.js';
+import {monthSummary} from '../static/advancement-statistics.js';
+import {fields,payload} from '../static/capture-form.js';
+import {beginTimer,transition,timerSubmission} from '../mobile/timer-model.js';
+const s={advancement:{domains:[{id:'fit',name:'健身',archived:false},{id:'ai',name:'AI',archived:false}],activities:[{id:'run',domainId:'fit',name:'跑步',archived:false},{id:'old',domainId:'fit',name:'旧项目',archived:true}],issues:[{id:'p',domainId:'fit',title:'膝盖问题'}],plans:[{id:'q',problemId:'p',domainId:'fit',title:'调整动作'}],updates:[],active:null,sessions:[{id:'r',domainId:'fit',activityId:'run',date:'2026-10-29',durationMs:1800000,manual:true,deleted:false,segments:[]},{id:'other',domainId:'fit',date:'2026-10-29',durationMs:600000,manual:true,deleted:false,segments:[]},{id:'removed',domainId:'fit',activityId:'run',date:'2026-10-29',durationMs:600000,manual:true,deleted:true,segments:[]}]}};
+const before=structuredClone(s),now=Date.parse('2026-10-29T20:00:00+08:00');
+assert.equal(recordingMode(s.advancement.domains[0]),'activities');assert.equal(recordingMode({name:'健身',recordingMode:'problems'}),'problems');assert.equal(recordingMode(s.advancement.domains[1]),'problems');assert.equal(activityRows(s.advancement,'fit').length,1);
+assert.deepEqual(target(s,'activity:run'),{activityId:'run',problemId:null,planId:null});assert.deepEqual(target(s,'plan:q'),{problemId:'p',planId:'q'});assert.throws(()=>target(s,'activity:old'));
+assert.equal(total(s,{activityId:'run'}),1800000);assert.equal(total(s,{domainId:'fit'}),2400000);assert.equal(monthSummary(s,'2026-10',{now,domainId:'fit'}).total,2400000);assert.deepEqual(s,before);
+const config={domains:s.advancement.domains,activities:activityRows(s.advancement,'fit'),problems:s.advancement.issues,plans:s.advancement.plans};
+const html=fields('time',{domainId:'fit',activityId:'run',durationMs:1800000},config);assert.match(html,/value="activity:run" selected/);assert.match(html,/value="30"/);assert.match(html,/data-problem-id="p"/);assert.doesNotMatch(html,/focusSegments/);
+const NativeFormData=globalThis.FormData;globalThis.FormData=class{constructor(form){this.v=form.values;}get(k){return this.v[k]??null;}};
+const form=values=>({values,elements:{timeTarget:{selectedOptions:[{dataset:{problemId:'p'}}]}}});
+const base={date:'2026-10-29',domainId:'fit',title:'跑步',minutes:'30',note:'忘开计时'};
+assert.deepEqual(payload(form({...base,timeTarget:'activity:run'}),'time'),{date:'2026-10-29',domainId:'fit',activityId:'run',title:'跑步',note:'忘开计时',durationMs:1800000});
+assert.deepEqual(payload(form({...base,timeTarget:'plan:q'}),'time').planId,'q');assert.equal(payload(form({...base,timeTarget:'plan:q'}),'time').problemId,'p');
+assert.throws(()=>payload(form({...base,minutes:'0'}),'time'));globalThis.FormData=NativeFormData;
+const start=Date.parse('2026-10-29T10:00:00+08:00'),timer=transition(beginTimer({domainId:'fit',activityId:'run',title:'跑步'},start,'phone-run'),'finish',start+600000),submission=timerSubmission(timer,start+600100);
+assert.equal(submission.payload.activityId,'run');assert.equal(submission.payload.durationMs,600000);assert.equal(submission.version,1);
+const old=timerSubmission(transition(beginTimer({domainId:'fit'},start,'old-timer'),'finish',start+600000),start+600100);assert.equal(Object.hasOwn(old.payload,'activityId'),false);
+console.log('Training: stable project targeting, independent problem paths, total/month aggregation, archived/deleted exclusions, manual capture and old/new timer payloads passed.');
+// A fitness domain may still have old problem paths. Normal training must not
+// silently attach a free manual record to that old problem when no projects exist.
+const originals={document:globalThis.document,window:globalThis.window,sessionStorage:globalThis.sessionStorage,setInterval:globalThis.setInterval};
+globalThis.document={addEventListener(){},querySelector(){return null;}};globalThis.window={addEventListener(){}};globalThis.sessionStorage={getItem(){return 'test-browser';},setItem(){}};globalThis.setInterval=()=>0;
+const {createAdvancement}=await import('../static/advancement-feature.js');
+const legacy=structuredClone(s);legacy.advancement.activities=[];legacy.advancement.workbench={focusDomainIds:['fit'],temporaryDomainIds:[],temporaryDate:null};legacy.advancement.issues[0].status='active';let modalBody='';
+const feature=createAdvancement({state:()=>legacy,space:()=> 'main',view:()=>({page:'today'}),render(){},buttons:()=>'',modal:(_,body)=>modalBody=body});
+await feature.action('advance-manual',{dataset:{}});assert.match(modalBody,/value=""[^>]*>不选项目/);assert.match(modalBody,/aria-label="补记事项名称"[^>]*value=""/);assert.doesNotMatch(modalBody,/value="plan:q" selected/);
+for(const [key,value] of Object.entries(originals))globalThis[key]=value;
+console.log('Fitness manual entry stays independent of legacy problem paths when no projects exist.');

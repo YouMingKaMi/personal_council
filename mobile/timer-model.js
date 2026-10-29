@@ -42,6 +42,6 @@ export function timerSubmission(timer,now=Date.now()){
  if(timer.status!=='finished')throw Error('请先结束计时');
  return {version:1,id:timer.id,kind:'focus',createdAt:new Date(now).toISOString(),payload:{
   date:dayAt(timer.segments[0].start),domainId:timer.domainId,problemId:timer.problemId||null,planId:timer.planId||null,
-  title:timer.title||'',note:timer.note||'',segments:structuredClone(timer.segments),durationMs:elapsed(timer),
+  ...(timer.activityId?{activityId:timer.activityId}:{}),title:timer.title||'',note:timer.note||'',segments:structuredClone(timer.segments),durationMs:elapsed(timer),
  }};
 }

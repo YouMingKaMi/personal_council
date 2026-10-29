@@ -97,3 +97,7 @@ expense 可选 allocation={startDate,expectedEndDate}，支持 null；旧五个�
 v1 expense 新增 allocation 的可选固定期限分支：`{"termType":"fixed","startDate":"2024-01-01","fixedEndDate":"2024-12-31"}`。预计使用仍沿用原 `startDate` + `expectedEndDate`，termType 缺省按预计使用处理，旧请求不添加、重命名或改写字段。固定期限不得同时带预计日期/实际结算/出售回收字段；手机新增明确覆盖期，电脑审核确认一次入库。付款日期与固定覆盖期可不同。表单仍由 static/expense-allocation-form.js 与电脑共用，预览区区分“固定期限”和“预计使用”；草稿新增 usageTermType，仅是表单状态，不是新外层接口字段。中转站须同步 expense_allocation.py 与共享表单/模型，缓存升级至 capture-shell-v8-fixed-expenses。
 
 新花销表单仅提供必要/非必要；旧 v1 的 necessity=undecided 请求和本机草稿仍可解析、确认，未批量修改既有数据。手机缓存升级为 capture-shell-v9-expense-costs；中转站同步 static/capture-form.js、static/expense-allocation.js 和 mobile/sw.js。桌面当下均摊是只读计算选项，不新增手机字段，不改变上传数据和确认流程。
+
+## 日常训练与手动补记 v1（2026-10-29）
+新增 kind=time：payload 为 date/domainId/durationMs（整数毫秒，>0 且 <=86400000），可选 title/note/problemId/planId/activityId；训练项目与问题方案互斥。没有 segments，不虚构时段。电脑确认以稳定收件 ID 在原事务中创建 manual session 与回执，重复确认不会多记；不修改当前电脑计时。focus 仅可选增加 activityId，旧封套、离线队列、计时草稿和时段语义不变。手机工作台可选训练项目或问题方案，补记按钮进入同一共享 time 表单。
+配置可选 activities=[{id,domainId,name}]，domains 可选 recordingMode=problems/activities，不包含训练历史、备注或时长。手机不能远程修改项目，项目在电脑新建后随录入选项发布，手机“更新选项与状态”可获取。收起后的新引用会被明确拒绝，原提交保留，可以在电脑检查修改。中转站同步 capture_contract.py、advancement_domain.py、capture_relay.py 和共享表单/activity-model、mobile app/timer-model/timer-workbench/sw。缓存为 capture-shell-v10-training，不清空本地草稿/计时/队列。部署保留凭证、域名、端口和收件箱；先升级电脑接收兼容，再升级手机发端。

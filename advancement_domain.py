@@ -58,6 +58,10 @@ def problem_scope(a, problem_id):
             'active': a.get('active') if (a.get('active') or {}).get('problemId')==problem_id else None}
 
 
+def recording_mode(d):
+    return d.get('recordingMode', 'activities' if d.get('name') in ('健身','运动') else 'problems')
+
+
 def validate_advancement(state):
     a=state.get('advancement')
     if a is None:return
@@ -72,6 +76,11 @@ def validate_advancement(state):
         if not isinstance(rows,list) or len(rows)>20000 or any(not isinstance(q,dict) for q in rows):raise ValueError('方案集合无效')
         ids=[ident(q.get('id')) for q in rows]
         if len(set(ids))!=len(ids):raise ValueError('方案标识重复')
+    rows=a.get('activities',[])
+    if not isinstance(rows,list) or len(rows)>20000 or any(not isinstance(x,dict) for x in rows):raise ValueError('日常项目集合无效')
+    ids=[ident(x.get('id')) for x in rows]
+    if len(set(ids))!=len(ids):raise ValueError('日常项目标识重复')
+    activities={x['id']:x for x in rows}
     plans={q['id']:q for q in a.get('plans',[])}
     if any(not isinstance(x,str) for x in a['commands']):raise ValueError('推进请求标识无效')
     domains={d['id']:d for d in a['domains']};issues={p['id']:p for p in a['issues']}
@@ -89,12 +98,21 @@ def validate_advancement(state):
         if a['scienceRootId'] not in folders:raise ValueError('中科院资料空间不存在')
     for d in domains.values():
         text(d.get('name'),80,True);text(d.get('goal'),2000)
+        if recording_mode(d) not in ('problems','activities'):raise ValueError('领域录入方式无效')
         if d.get('folderId') is not None and d['folderId'] not in folders:raise ValueError('关联领域不存在')
         if type(d.get('archived')) is not bool:raise ValueError('领域状态无效')
         if d.get('focusId') and (d['focusId'] not in issues or issues[d['focusId']]['domainId']!=d['id']):raise ValueError('当前问题不属于该领域')
     def belongs(p):
         if p.get('domainId') not in domains:raise ValueError('推进领域不存在')
         if p.get('problemId') and (p['problemId'] not in issues or issues[p['problemId']]['domainId']!=p['domainId']):raise ValueError('问题与领域不一致')
+    for x in activities.values():
+        belongs(x);text(x.get('name'),80,True)
+        if type(x.get('archived')) is not bool:raise ValueError('日常项目状态无效')
+        text(x.get('createdAt'),60,True);text(x.get('updatedAt'),60,True)
+    def activity_belongs(row):
+        id=row.get('activityId')
+        if id and (id not in activities or activities[id]['domainId']!=row['domainId']):raise ValueError('日常项目与领域不一致')
+        if id and (row.get('problemId') or row.get('planId')):raise ValueError('日常项目与问题方案须分开记录')
     for q in plans.values():
         belongs(q);text(q.get('title'),300,True);text(q.get('body',''))
         if not q.get('problemId') or q.get('status') not in ('open','active','done','parked','abandoned') or type(q.get('deleted')) is not bool:raise ValueError('方案状态无效')
@@ -115,7 +133,7 @@ def validate_advancement(state):
         if p.get('sourceNoteId') is not None and p['sourceNoteId'] not in notes:raise ValueError('原记录不存在')
         if not isinstance(p.get('links'),list) or any(x not in notes for x in p['links']):raise ValueError('关联资料不存在')
     for u in a['updates']:
-        belongs(u);plan_belongs(u);day(u.get('date'));text(u.get('body'),100000,True)
+        belongs(u);plan_belongs(u);activity_belongs(u);day(u.get('date'));text(u.get('body'),100000,True)
     spans=[]
     def segments(rows):
         if not isinstance(rows,list) or len(rows)>10000:raise ValueError('计时片段无效')
@@ -126,7 +144,7 @@ def validate_advancement(state):
             if end>start:spans.append((start,end))
     for s in a['sessions']:
         if 'cancelled' in s and type(s['cancelled']) is not bool:raise ValueError('计时取消状态无效')
-        belongs(s);plan_belongs(s);day(s.get('date'));text(s.get('title'),300);text(s.get('note'))
+        belongs(s);plan_belongs(s);activity_belongs(s);day(s.get('date'));text(s.get('title'),300);text(s.get('note'))
         if type(s.get('deleted')) is not bool or type(s.get('manual')) is not bool:raise ValueError('计时记录状态无效')
         number(s.get('durationMs'))
         if s['durationMs']>86400000*30:raise ValueError('计时记录过长')
@@ -136,7 +154,7 @@ def validate_advancement(state):
     active=a.get('active')
     if active is not None:
         if 'clockMode' in active and active['clockMode']!='server':raise ValueError('计时确认方式无效')
-        belongs(active);plan_belongs(active);ident(active.get('id'));ident(active.get('owner'));text(active.get('title'),300)
+        belongs(active);plan_belongs(active);activity_belongs(active);ident(active.get('id'));ident(active.get('owner'));text(active.get('title'),300)
         if active.get('status') not in ('running','paused'):raise ValueError('当前计时状态无效')
         day(active.get('date'));segments(active.get('segments'));number(active.get('lastSeen'))
         if active['status']=='running':

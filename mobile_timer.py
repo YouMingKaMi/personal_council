@@ -1,12 +1,12 @@
 """Import a finished phone timer only inside the existing approval transaction."""
 import datetime as dt
-from advancement_service import domain,issue,plan,add_update
+from advancement_service import domain,issue,plan,add_update,activity_ref
 
 
 def import_timer(state,p,id,stamp):
     a=state.get('advancement')
     if a is None:raise ValueError('个人推进台尚未启用')
-    d=domain(a,p['domainId']);pid=p.get('problemId');qid=p.get('planId')
+    d=domain(a,p['domainId']);activity=activity_ref(a,p);pid=p.get('problemId');qid=p.get('planId')
     if pid and issue(a,pid)['domainId']!=d['id']:raise ValueError('问题与计时领域不一致')
     if qid:
         q=plan(a,qid)
@@ -26,6 +26,8 @@ def import_timer(state,p,id,stamp):
          'date':p['date'],'segments':segments,'durationMs':p.get('adjustedDurationMs',p['durationMs']),
          'manual':adjusted,'deleted':False,'note':p.get('note',''),'endedAt':p['segments'][-1]['end'],'source':'mobile'}
     if qid:row['planId']=qid
+    if activity:row['activityId']=activity['id']
+    if not row['title'] and activity:row['title']=activity['name']
     if adjusted:row['original']={'segments':p['segments'],'durationMs':p['durationMs'],'manual':False}
     a['sessions'].append(row)
-    if row['note'].strip():add_update(state,{'domainId':d['id'],'problemId':pid,'planId':qid,'date':p['date'],'body':row['note']},id+'-progress',stamp)
+    if row['note'].strip():add_update(state,{'domainId':d['id'],'problemId':pid,'planId':qid,'activityId':p.get('activityId'),'date':p['date'],'body':row['note']},id+'-progress',stamp)

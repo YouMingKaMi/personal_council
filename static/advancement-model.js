@@ -5,7 +5,7 @@ export const data=s=>s.advancement||{domains:[],issues:[],updates:[],sessions:[]
 export const planStates={open:'待推进',active:'推进中',done:'已完成',parked:'暂放',abandoned:'已放弃'};
 export const plans=(s,id)=>(data(s).plans||[]).filter(q=>q.problemId===id&&!q.deleted);
 export function currentPlan(s,id){const p=data(s).issues.find(p=>p.id===id),qs=plans(s,id).filter(q=>planAvailable(data(s).plans||[],q.id));return qs.find(q=>q.id===p?.focusPlanId)||qs.find(q=>q.status==='active')||qs[0];}
-export function target(s,value){if(value?.startsWith('plan:')){const q=(data(s).plans||[]).find(q=>q.id===value.slice(5));if(!q)throw Error('方案已变化，请刷新后重试');return {problemId:q.problemId,planId:q.id};}return {problemId:value||null,planId:null};}
+export function target(s,value){if(value?.startsWith('activity:')){const x=(data(s).activities||[]).find(x=>x.id===value.slice(9)&&!x.archived);if(!x)throw Error('日常项目已变化，请重选');return {problemId:null,planId:null,activityId:x.id};}if(value?.startsWith('plan:')){const q=(data(s).plans||[]).find(q=>q.id===value.slice(5));if(!q)throw Error('方案已变化，请刷新后重试');return {problemId:q.problemId,planId:q.id};}return {problemId:value||null,planId:null};}
 export const domains=s=>data(s).domains.filter(d=>!d.archived);
 export const focusDomains=s=>domains(s).filter(d=>(data(s).workbench?.focusDomainIds||[]).includes(d.id));
 export function workbenchDomains(s,day,now=Date.now()){
@@ -25,10 +25,10 @@ export const clock=ms=>{const t=Math.floor(Math.max(0,ms)/1000);return [Math.flo
 export const activeEnd=(r,now=Date.now())=>Math.min(now,r.lastSeen+(r.clockMode==='server'?30000:60000));
 export function activeMs(r,now=Date.now()){return r?r.segments.reduce((s,r)=>s+r.end-r.start,0)+(r.status==='running'?Math.max(0,activeEnd(r,now)-r.segmentStart):0):0;}
 export function interval(day){const start=Date.parse(day+'T00:00:00+08:00');return [start,start+86400000];}
-export function total(s,{start,end,domainId,problemId,planId,subtree=false,now=Date.now()}={}){
+export function total(s,{start,end,domainId,problemId,planId,activityId,subtree=false,now=Date.now()}={}){
  const a=data(s),lo=start?interval(start)[0]:-Infinity,hi=end?interval(end)[1]:Infinity;
  let sum=0;
- const selected=r=>(!domainId||r.domainId===domainId)&&(!problemId||r.problemId===problemId)&&(!planId||r.planId===planId||subtree&&inPlanBranch(a.plans||[],r.planId,planId));
+ const selected=r=>(!activityId||r.activityId===activityId)&&(!domainId||r.domainId===domainId)&&(!problemId||r.problemId===problemId)&&(!planId||r.planId===planId||subtree&&inPlanBranch(a.plans||[],r.planId,planId));
  const add=rows=>rows.reduce((n,r)=>n+Math.max(0,Math.min(r.end,hi)-Math.max(r.start,lo)),0);
  for(const r of a.sessions.filter(r=>!r.deleted&&selected(r))){
   if(r.manual){if((!start||r.date>=start)&&(!end||r.date<=end))sum+=r.durationMs;}
